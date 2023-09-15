@@ -7,6 +7,7 @@ library(sf)
 library(readxl)
 library(dplyr)
 library(tidycensus)
+library(purrr)
 
 # Set working directory
 mywd <- "C:/FHWA/For FHWA folks/microtype_input_preparation"
