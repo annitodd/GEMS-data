@@ -114,6 +114,7 @@ pm10 = st_intersection(d, tracts) %>%
 # CO
 # source link: https://www3.epa.gov/airquality/greenbook/shapefile/co_1971std_naa_shapefile.zip
 d <- st_read(file.path(datadir,"EPA/air_quality/co_1971std_naa_shapefile"))
+d <- sf::st_buffer(d, dist = 0)
 tracts <- st_transform(tracts , st_crs(d))
 co = st_intersection(d, tracts) %>%
   mutate(co = 1) %>%
