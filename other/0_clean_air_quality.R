@@ -15,6 +15,7 @@ cleandir <- "CleanData"
 library(sf)
 library(dplyr)
 library(data.table)
+library(purrr)
 
 #########
 # LOAD data
@@ -146,13 +147,13 @@ pb1978 = st_intersection(d, tracts) %>%
   select(GEOID, pb1978)
 
 #remove geometry 
-list_epa <- as.list(pb2008, so2, ozone2008, ozone2015, pm1997, pm2006, pm2012 , pb1978, so21971 , no2, co, pm10, tracts)
-lapply(list_epa, st_drop_geometry)
+list_epa <- list(pb2008, so2, ozone2008, ozone2015, pm1997, pm2006, pm2012 , pb1978, so21971 , no2, co, pm10, tracts)
+list_epa <- lapply(list_epa, st_drop_geometry)
 
 # merge all of the dataframes together
-all <- Reduce(function(x,y) merge(x = x, y = y, by = "GEOID", na.omit = FALSE, all = T), 
-              list(list_epa))
-
+# all <- Reduce(function(x,y) merge(x = x, y = y, by = "GEOID", na.omit = FALSE, all = T), 
+#               list(list_epa))
+all <- list_epa %>% reduce(full_join, by = "GEOID")
 # replace NAs with zeros
 all[is.na(all)] <- 0
 fwrite(all, file = file.path(cleandir, "air_quality_tracts.csv"))
