@@ -103,6 +103,7 @@ so2 = st_intersection(d, tracts) %>%
   select(GEOID, so2)
 
 # PM 10 -1987
+sf_use_s2(FALSE)
 # source link: https://www3.epa.gov/airquality/greenbook/shapefile/pm10_1987std_naa_shapefile.zip
 d <- st_read(file.path(datadir,"EPA/air_quality/pm10_1987std_naa_shapefile"))
 tracts <- st_transform(tracts , st_crs(d))
@@ -121,6 +122,7 @@ co = st_intersection(d, tracts) %>%
 # NO2 
 # source link: https://www3.epa.gov/airquality/greenbook/shapefile/no2_1971std_naa_shapefile.zip
 d <- st_read(file.path(datadir,"EPA/air_quality/no2_1971std_naa_shapefile"))
+d <- sf::st_buffer(d, dist = 0)
 tracts <- st_transform(tracts , st_crs(d))
 no2 = st_intersection(d, tracts) %>%
   mutate(no2 =1) %>%
