@@ -82,6 +82,12 @@ combined_counties <- rbind_tigris(
 file_name_ct = paste0('combined_county_', year_selected, '.geojson')
 st_write(obj=combined_counties, dsn=file.path(cleandir, file_name_ct))
 
+# census tract 2020 - 2010 crosswalk
+census_tract_crosswalk <- read.table(file.path(datadir, 
+                                               'www2.census.gov_geo_docs_maps-data_data_rel2020_tract_tab20_tract20_tract10_natl.txt'), 
+                                     header = TRUE, sep = "|")
+write.csv(census_tract_crosswalk, file.path(cleandir, 'census_tract_crosswalk_2010_2020.csv'))
+
 # exporting combined shape file. LJ add path to save the data
 #writeOGR(obj=combined_counties, dsn=file.path(cleandir,"Counties"), layer="combined_counties", driver="ESRI Shapefile")
 
