@@ -1,7 +1,7 @@
 # Census tract shapefile compile
 ######################################################################
 # LJ add: directories so that the files are saved in the right places
-mywd <- "C:/FHWA/For FHWA folks"
+mywd <- "C:/FHWA_R2/spatial_boundary"
 setwd(mywd)
 
 datadir <- "RawData"
@@ -18,7 +18,7 @@ if ( "taRifx.geo" %in% rownames(installed.packages()) == FALSE) {
 }
 
 
-require(taRifx.geo) 
+#require(taRifx.geo) 
 #Xiaodan notes, this package is no longer available from CRAN
 # IF you need to install it, download the following GZ files and install them manually
 # https://cran.r-project.org/src/contrib/Archive/taRifx.geo/
@@ -43,7 +43,7 @@ library(broom) # to use tidy
 # tidycensus produces 73,056
 # importing and combining US census tracts
 us <- unique(fips_codes$state)[1:51]
-
+year_selected = 2018
 #tidycensus
 census_api_key("e74b4d8c97989e07245040ac84168a638247af9a", install = TRUE, overwrite = TRUE)
 readRenviron("~/.Renviron")
@@ -52,13 +52,15 @@ options(tigris_use_cache = TRUE)
 tracts <- reduce(
   purrr::map(us, function(x) {
     get_acs(geography = "tract", variables = "B01003_001", 
-            state = x, geometry = T, year = 2018)
+            state = x, geometry = T, year = year_selected)
   }), 
   rbind
 )
-
+tracts <- tracts %>% 
+  select(-variable, -estimate, -moe)
 # exporting combined shape file. LJ add path to save the data
-st_write(obj=tracts, dsn=file.path(cleandir,"combined_tracts/combined_tracts.shp"), layer="combined_tracts", driver="ESRI Shapefile")
+file_name = paste0('combined_tracts_', year_selected, '.geojson')
+st_write(obj=tracts, dsn=file.path(cleandir, file_name))
 
 ################
 # COUNTY BOUNDARIES
@@ -73,20 +75,22 @@ st_write(obj=tracts, dsn=file.path(cleandir,"combined_tracts/combined_tracts.shp
 # LJ add:
 combined_counties <- rbind_tigris(
   lapply(us, function(x) {
-    counties(x, cb = TRUE, year = 2018)
+    counties(x, cb = TRUE, year = year_selected)
   })
 )
 
+file_name_ct = paste0('combined_county_', year_selected, '.geojson')
+st_write(obj=combined_counties, dsn=file.path(cleandir, file_name_ct))
 
 # exporting combined shape file. LJ add path to save the data
-writeOGR(obj=combined_counties, dsn=file.path(cleandir,"Counties"), layer="combined_counties", driver="ESRI Shapefile")
+#writeOGR(obj=combined_counties, dsn=file.path(cleandir,"Counties"), layer="combined_counties", driver="ESRI Shapefile")
 
 # Xiaodan's notes: we didn't use the following output, please skip these lines
-combined_counties@data$GEOID <- as.character(combined_counties@data$GEOID) # convert GEOID to character
-
-ggcbg3<-tidy(combined_counties, region = "GEOID")  # convert polygons to data.frame
-
-fwrite(ggcbg3, file = file.path(cleandir,"Counties","all_counties_2018.csv"), row.names = F)
+# combined_counties@data$GEOID <- as.character(combined_counties@data$GEOID) # convert GEOID to character
+# 
+# ggcbg3<-tidy(combined_counties, region = "GEOID")  # convert polygons to data.frame
+# 
+# fwrite(ggcbg3, file = file.path(cleandir,"Counties","all_counties_2018.csv"), row.names = F)
 
 
 
