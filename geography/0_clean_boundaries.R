@@ -43,7 +43,7 @@ library(broom) # to use tidy
 # tidycensus produces 73,056
 # importing and combining US census tracts
 us <- unique(fips_codes$state)[1:51]
-year_selected = 2018
+year_selected = 2020
 #tidycensus
 census_api_key("e74b4d8c97989e07245040ac84168a638247af9a", install = TRUE, overwrite = TRUE)
 readRenviron("~/.Renviron")
@@ -51,13 +51,14 @@ options(tigris_use_cache = TRUE)
 
 tracts <- reduce(
   purrr::map(us, function(x) {
-    get_acs(geography = "tract", variables = "B01003_001", 
-            state = x, geometry = T, year = year_selected)
+    tracts(state = x, year = year_selected) # Xiaodan's note: using tigris package for this:https://rdrr.io/cran/tigris/man/tracts.html
+    # get_acs(geography = "tract", variables = "B01003_001", 
+    #         state = x, geometry = T, year = year_selected)
   }), 
   rbind
 )
-tracts <- tracts %>% 
-  select(-variable, -estimate, -moe)
+# tracts <- tracts %>% 
+#   select(-variable, -estimate, -moe)
 # exporting combined shape file. LJ add path to save the data
 file_name = paste0('combined_tracts_', year_selected, '.geojson')
 st_write(obj=tracts, dsn=file.path(cleandir, file_name))
@@ -83,6 +84,7 @@ file_name_ct = paste0('combined_county_', year_selected, '.geojson')
 st_write(obj=combined_counties, dsn=file.path(cleandir, file_name_ct))
 
 # census tract 2020 - 2010 crosswalk
+# link: https://www2.census.gov/geo/docs/maps-data/data/rel2020/tract/tab20_tract20_tract10_natl.txt
 census_tract_crosswalk <- read.table(file.path(datadir, 
                                                'www2.census.gov_geo_docs_maps-data_data_rel2020_tract_tab20_tract20_tract10_natl.txt'), 
                                      header = TRUE, sep = "|")
