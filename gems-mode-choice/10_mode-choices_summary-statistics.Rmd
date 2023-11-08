@@ -1,15 +1,10 @@
 ---
 title: "10_mode-choices_summary-statistics"
 author: "Annika"
-date: "Created on 10/21/2023. Last compiled on `r Sys.Date()`"
-output: html_document
+date: "created this code doc on 10/21/2023. Last compiled on `r Sys.Date()`"
 output:
   github_document:
-    preserve_yaml: FALSE
-    dev: "png"
-    df_print: "default"
-    html_preview: TRUE
-    keep_html: FALSE
+    df_print: kable
 editor_options:
   chunk_output_type: inline
   markdown: 
@@ -18,7 +13,7 @@ editor_options:
 
 # Description
 
-This code opens datasets from NHTS data in 2017, cleans them, saves as new datasets. The second half of this code, provides very basic summary stats.
+This code opens raw datasets from NHTS data in 2017, cleans them, saves as new datasets. The second half of this code provides very basic summary stats. Another code will then use the cleaned dataset from here to make more fancy summary stats.
 
 # Setup
 
@@ -36,13 +31,22 @@ library(readxl)
 library(rstudioapi)
 library(scales)
 library(writexl)
-library(readr)
+#install.packages("rmarkdown")
 ```
 
 ## file path directories
 
 ```{r}
-datadir <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
+# get current root directory of the user's Github repo
+root <- getwd() # Saves current WD 
+while ((basename(root) != "GEMS-data")) {
+  root <- dirname(root)
+} # Sets root equal to the location of the Github repo
+source(file.path(root, "paths.R")) # Runs paths.R file found in users Github repo
+```
+
+```{r}
+data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 ```
 
 # Open Data sets and Clean
@@ -58,7 +62,7 @@ These data sets are from the NHST 2017 (verify it's 2017?) survey
 -   The public data dictionary is here: <https://nhts.ornl.gov/documentation> <https://nhts.ornl.gov/documentation>
 
 ```{r}
-trippub <- read_csv(file=file.path(datadir, 'trippub.csv'))
+trippub <- read_csv(file=file.path(data_path, 'trippub.csv'))
 #View(trippub)
 ```
 
@@ -72,13 +76,14 @@ summary <- trippub |>
     .groups = "drop") |> 
   arrange(TRPTRANS)   
 summary
+
 ```
 
 ### define modes
 
 First I'm going to create smaller bins of modes because there are too many, there are like 17 or more The definitions are here: GEMS master data dictionary, in the clean_mode_choice_data tab: <https://docs.google.com/spreadsheets/d/1RVxqALDAE1u4SC569Cq373_fafaE1nZiZBJJMiRTYu8/edit#gid=81250909>
 
-```{r}
+
 
 
 
@@ -93,7 +98,10 @@ trptrans =15, 16~ 'rail',
 trptrans =17 ~ 'taxi',
 Rest ~ 'other'
 "
+```{r}
+
 ```
+
 
 ## define trip purpose
 
@@ -123,24 +131,24 @@ in the "transition_matrix" tab of the GEMS Master Data dictionary sheet Distance
 # Houshold GEOIDs?
 
 
-df <- read.csv(file = file.path(datadir, "hhct.csv" ))  # household, trip ct.csv -- resticted 
+#df <- read.csv(file = file.path(datadir, "hhct.csv" ))  # household, trip ct.csv -- resticted 
 
 #
 
 #df <- read.csv(trippub.csv)
 
 # SURVEY DATA, this is cleaned of location
-trippub.csv # has all of the trip information for every trip a household took in the survey, each row is a trip
+#trippub.csv # has all of the trip information for every trip a household took in the survey, each row is a trip
 ```
 
 ```{r}
-hhpub -- # this has the household information , demographics, location of household, info from survey
+#hhpub -- # this has the household information , demographics, location of household, info from survey
   
   
 # PRIVATE data, maps household to trips
-location <- read.csv(file = file.path(datadir, "hhct.csv" ))  # household, trip ct.csv -- resticted data -- only has household location -- links
+#location <- read.csv(file = file.path(datadir, "hhct.csv" ))  # household, trip ct.csv -- resticted data -- only has household location -- links
 
-df <- tripct.csv # raw trip with od  -- only has tract
+#df <- tripct.csv # raw trip with od  -- only has tract
 # trip path with distance
 ```
 
@@ -202,7 +210,7 @@ Note: keep all new vars etc, new definitions, at the beginning or in a separate 
 
 ### doing a mnl fractional, even if not totally decided on how to make one unit of obs
 
-#--- \# END \# \# END \# \*\*\* Notes \*\*\*
+
 
 filter raw trip in the NHTS by origin county tripct is census tract -- last 4 didgets or something is county number of trips by county by mode
 
@@ -215,7 +223,7 @@ filter raw trip in the NHTS by origin county tripct is census tract -- last 4 di
 *Distance Class* Can use this to see what the different classes are -- but these merge with geo types not with census TransitionMatrix-100m.csv 31919 C:\FHWA\For FHWA folks\CleanData Xiaodan
 
 ```{r}
-)
+
 
   
 
@@ -241,6 +249,11 @@ load(file= file.path(datadir,'NHTS_tract_origin_train_dist_transgeo.RData'))
 # tract IDs, then the microgeotypes -- crosswalk of tract to geotype
 
 This is from before I talked to Anna and Xiaodan:
+#--- \# END \# \# END \# \*\*\* Notes \*\*\*
+```{r}
+1 + 1
+knitr::knit_exit()
+```
 
 ```{r}
 df <- load("C:/FHWA_R2/This is from before/Mode_choice_estimation/Data/ModeChoice_Tour_A.Rdata")
