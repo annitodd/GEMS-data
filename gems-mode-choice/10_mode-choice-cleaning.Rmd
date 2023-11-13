@@ -9,7 +9,11 @@ output:
 
 # Description
 
-This code opens raw datasets from NHTS data in 2017, cleans them, saves as new datasets. The second half of this code provides very basic summary stats. Another code will then use the cleaned dataset from here to make more fancy summary stats.
+This code opens raw datasets from NHTS data in 2017, cleans them, possibly merges them, gives super basic summary tables of new stats that are a result of the new vars, and then saves as new datasets. Another code will then use the cleaned dataset from here to make more fancy summary stats.
+
+Data Dictionary: I'm taking the results from this code, and also putting it into the GEMS master data dictionary. They are in NEW TABs including "clean_mode_choice_data_ATB" and other tabs: <https://docs.google.com/spreadsheets/d/1RVxqALDAE1u4SC569Cq373_fafaE1nZiZBJJMiRTYu8/edit?usp=sharing>
+
+GitHub: This .Rmd code (possibly qmd if I have to change it with the new update to R Studio) is synced to Github, and when this code is knit, it's also synced to GitHub, as a .md file, which makes the knitted code easy to read (kind of like python code.) Currently in a FORK: <https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice/10_mode-choice-cleaning.md>
 
 # Setup
 
@@ -45,17 +49,21 @@ data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 ```
 
 # DATA - Open and Clean
-These data sets are from the NHST 2017 survey.
-Define and clean each dataset.
-- trippub is person-trip, without geo IDs
+## Raw data
 
-## Dataset: trippub
+These data sets are from the NHST 2017 survey. Documentation is [here](https://nhts.ornl.gov/documentation), with useful [user's guide](https://nhts.ornl.gov/assets/NHTS2017_UsersGuide_04232019_1.pdf), and [codebook](https://nhts.ornl.gov/assets/codebook_v1.2.pdf), and very simple [data dictionary](https://nhts.ornl.gov/assets/dictionary_v1_2.xlsx) that is also saved in Github here.
 
--   each row is a person-trip.
+Data file structure screen shot:
 
--   This dataset is a public dataset. It does not have geo IDs.
+![](pngs/NHST_data_file_structure.png){width="680"}
 
--   The public data dictionary is here: <https://nhts.ornl.gov/documentation> <https://nhts.ornl.gov/documentation>
+-   trippub: each row is person-trip, without geo IDs. It's public dataset.
+-   tripsct: County-Tract Crosswalk
+-   hhct.csv: Household GEOIDs
+
+## Dataset: Person-Trips (trippub)
+
+This has all of the trip information for every trip a household took in the survey, each row is a trip for each person that answered the survey
 
 ```{r load, cache=TRUE}
 trippub <- read_csv(file=file.path(data_path, 'trippub.csv'))
@@ -71,12 +79,12 @@ names(df_trips)
 ```
 
 ### define modes
+
 Uses TRPTRANS from NHTS
 
 First I'm going to create smaller bins of modes because there are too many, there are like 17 or more The definitions are here: GEMS master data dictionary, in the clean_mode_choice_data tab: <https://docs.google.com/spreadsheets/d/1RVxqALDAE1u4SC569Cq373_fafaE1nZiZBJJMiRTYu8/edit#gid=81250909>
 
 ![](pngs/TRPTRANS_dictionary.png)
-
 
 ```{r}
 df_trips <- df_trips  %>%
@@ -108,6 +116,7 @@ summary <- df_trips |>
   arrange(TRPTRANS)   
 summary
 ```
+
 ```{r}
 summary <- df_trips |>
     group_by(mode) |>
@@ -118,10 +127,10 @@ summary <- df_trips |>
 summary
 ```
 
-
 ### define trip purpose
-trip_purpose generated from NHTS field 'whytrp1s'
-![](pngs/WHYTRP1S_dictionary.png)
+
+trip_purpose generated from NHTS field 'whytrp1s' ![](pngs/WHYTRP1S_dictionary.png)
+
 ```{r}
 df_trips <- df_trips  %>%
   mutate(trip_purpose = 
@@ -145,8 +154,8 @@ summary
 ```
 
 ### define time bins
-trip_purpose generated from NHTS field 'STRTTIME'
-![](pngs/STRTTIME_dictionary.png)
+
+trip_purpose generated from NHTS field 'STRTTIME' ![](pngs/STRTTIME_dictionary.png)
 
 ```{r}
 # convert to numeric
@@ -173,17 +182,11 @@ summary <- df_trips |>
 summary
 ```
 
-# define distance bins
+## Dataset - tripsct: County-Tract Crosswalk
 
-in the "transition_matrix" tab of the GEMS Master Data dictionary sheet DistanceBinID "Trip distance bin defined as following: • bin1 - distance between 0 and 1 mile • bin2 - distance between 1 and 2 miles • bin3 - distance between 2 and 4 miles • bin4 - distance between 4 and 8 miles • bin5 - distance between 8 and 15 miles • bin6 - distance between 15 and 20 miles • bin7 - distance between 20 and 35 miles • bin8 - distance above 35 miles" \### Note is this inclusive? Check at some point
+Read in tripsct because it has the county fips codes and census tract to crosswalk
 
-```{r}
-
-```
-
-## Dataset: ...
-## Dataset: ...
-
+## Dataset - hhct.csv: Household GEOIDs
 
 ```{r}
 # Houshold GEOIDs?
@@ -193,10 +196,7 @@ in the "transition_matrix" tab of the GEMS Master Data dictionary sheet Distance
 
 #
 
-#df <- read.csv(trippub.csv)
 
-# SURVEY DATA, this is cleaned of location
-#trippub.csv # has all of the trip information for every trip a household took in the survey, each row is a trip
 ```
 
 ```{r}
@@ -210,8 +210,6 @@ in the "transition_matrix" tab of the GEMS Master Data dictionary sheet Distance
 # trip path with distance
 ```
 
-## Read in tripsct because it has the county fips codes and census tract to crosswalk to
-
 ```{r}
 1 + 1
 knitr::knit_exit()
@@ -220,6 +218,14 @@ knitr::knit_exit()
 #--- \# END \# \# END \# \*\*\* Notes \*\*\*
 
 # Next Steps
+
+# define distance bins
+
+in the "transition_matrix" tab of the GEMS Master Data dictionary sheet DistanceBinID "Trip distance bin defined as following: • bin1 - distance between 0 and 1 mile • bin2 - distance between 1 and 2 miles • bin3 - distance between 2 and 4 miles • bin4 - distance between 4 and 8 miles • bin5 - distance between 8 and 15 miles • bin6 - distance between 15 and 20 miles • bin7 - distance between 20 and 35 miles • bin8 - distance above 35 miles" \### Note is this inclusive? Check at some point
+
+```{r}
+
+```
 
 ## Overview & background
 

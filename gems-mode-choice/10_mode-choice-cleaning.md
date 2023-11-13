@@ -2,15 +2,16 @@ Annika created this code doc on 10/21/2023. Last compiled on 2023-11-13
 
 - [Description](#description)
 - [Setup](#setup)
-- [DATA - OPEN, CLEAN](#data---open-clean)
+- [DATA - Open and Clean](#data---open-and-clean)
 - [define distance bins](#define-distance-bins)
 
 # Description
 
-This code opens raw datasets from NHTS data in 2017, cleans them, saves
-as new datasets. The second half of this code provides very basic
-summary stats. Another code will then use the cleaned dataset from here
-to make more fancy summary stats.
+This code opens raw datasets from NHTS data in 2017, cleans them,
+possibly merges them, gives super basic summary tables of new stats that
+are a result of the new vars, and then saves as new datasets. Another
+code will then use the cleaned dataset from here to make more fancy
+summary stats.
 
 # Setup
 
@@ -46,7 +47,7 @@ source(file.path(root, "paths.R")) # Runs paths.R file found in users Github rep
 data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 ```
 
-# DATA - OPEN, CLEAN
+# DATA - Open and Clean
 
 These data sets are from the NHST 2017 survey. Define and clean each
 dataset. - trippub is person-trip, without geo IDs
