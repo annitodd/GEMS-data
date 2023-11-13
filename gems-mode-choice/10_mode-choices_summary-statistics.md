@@ -1,7 +1,9 @@
-10_mode-choices_summary-statistics
-================
-Annika
-created this code doc on 10/21/2023. Last compiled on 2023-11-08
+Annika created this code doc on 10/21/2023. Last compiled on 2023-11-13
+
+- [Description](#description)
+- [Setup](#setup)
+- [DATA - OPEN, CLEAN](#data---open-clean)
+- [define distance bins](#define-distance-bins)
 
 # Description
 
@@ -27,7 +29,6 @@ library(readxl)
 library(rstudioapi)
 library(scales)
 library(writexl)
-#install.packages("rmarkdown")
 ```
 
 ## file path directories
@@ -45,11 +46,12 @@ source(file.path(root, "paths.R")) # Runs paths.R file found in users Github rep
 data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 ```
 
-# Open Data sets and Clean
+# DATA - OPEN, CLEAN
 
-These data sets are from the NHST 2017 (verify it’s 2017?) survey
+These data sets are from the NHST 2017 survey. Define and clean each
+dataset. - trippub is person-trip, without geo IDs
 
-## trippub dataset
+## Dataset: trippub
 
 - each row is a person-trip.
 
@@ -61,16 +63,95 @@ These data sets are from the NHST 2017 (verify it’s 2017?) survey
 
 ``` r
 trippub <- read_csv(file=file.path(data_path, 'trippub.csv'))
-#View(trippub)
+names(trippub)
 ```
 
-### 
+    ##   [1] "HOUSEID"   "PERSONID"  "TDTRPNUM"  "STRTTIME"  "ENDTIME"   "TRVLCMIN" 
+    ##   [7] "TRPMILES"  "TRPTRANS"  "TRPACCMP"  "TRPHHACC"  "VEHID"     "TRWAITTM" 
+    ##  [13] "NUMTRANS"  "TRACCTM"   "DROP_PRK"  "TREGRTM"   "WHODROVE"  "WHYFROM"  
+    ##  [19] "LOOP_TRIP" "TRPHHVEH"  "HHMEMDRV"  "HH_ONTD"   "NONHHCNT"  "NUMONTRP" 
+    ##  [25] "PSGR_FLG"  "PUBTRANS"  "TRIPPURP"  "DWELTIME"  "TDWKND"    "VMT_MILE" 
+    ##  [31] "DRVR_FLG"  "WHYTRP1S"  "ONTD_P1"   "ONTD_P2"   "ONTD_P3"   "ONTD_P4"  
+    ##  [37] "ONTD_P5"   "ONTD_P6"   "ONTD_P7"   "ONTD_P8"   "ONTD_P9"   "ONTD_P10" 
+    ##  [43] "ONTD_P11"  "ONTD_P12"  "ONTD_P13"  "TDCASEID"  "TRACC_WLK" "TRACC_POV"
+    ##  [49] "TRACC_BUS" "TRACC_CRL" "TRACC_SUB" "TRACC_OTH" "TREGR_WLK" "TREGR_POV"
+    ##  [55] "TREGR_BUS" "TREGR_CRL" "TREGR_SUB" "TREGR_OTH" "WHYTO"     "TRAVDAY"  
+    ##  [61] "HOMEOWN"   "HHSIZE"    "HHVEHCNT"  "HHFAMINC"  "DRVRCNT"   "HHSTATE"  
+    ##  [67] "HHSTFIPS"  "NUMADLT"   "WRKCOUNT"  "TDAYDATE"  "HHRESP"    "LIF_CYC"  
+    ##  [73] "MSACAT"    "MSASIZE"   "RAIL"      "URBAN"     "URBANSIZE" "URBRUR"   
+    ##  [79] "GASPRICE"  "CENSUS_D"  "CENSUS_R"  "CDIVMSAR"  "HH_RACE"   "HH_HISP"  
+    ##  [85] "HH_CBSA"   "SMPLSRCE"  "R_AGE"     "EDUC"      "R_SEX"     "PRMACT"   
+    ##  [91] "PROXY"     "WORKER"    "DRIVER"    "WTTRDFIN"  "WHYTRP90"  "R_AGE_IMP"
+    ##  [97] "R_SEX_IMP" "HBHUR"     "HTHTNRNT"  "HTPPOPDN"  "HTRESDN"   "HTEEMPDN" 
+    ## [103] "HBHTNRNT"  "HBPPOPDN"  "HBRESDN"
 
 ``` r
-summary <- trippub |>
-    group_by(TRPTRANS) |>
+saveRDS(trippub, "df_trips.rds")
+rm(trippub)
+```
+
+``` r
+df_trips <- readRDS("df_trips.rds")
+View(df_trips)
+names(df_trips)
+```
+
+    ##   [1] "HOUSEID"   "PERSONID"  "TDTRPNUM"  "STRTTIME"  "ENDTIME"   "TRVLCMIN" 
+    ##   [7] "TRPMILES"  "TRPTRANS"  "TRPACCMP"  "TRPHHACC"  "VEHID"     "TRWAITTM" 
+    ##  [13] "NUMTRANS"  "TRACCTM"   "DROP_PRK"  "TREGRTM"   "WHODROVE"  "WHYFROM"  
+    ##  [19] "LOOP_TRIP" "TRPHHVEH"  "HHMEMDRV"  "HH_ONTD"   "NONHHCNT"  "NUMONTRP" 
+    ##  [25] "PSGR_FLG"  "PUBTRANS"  "TRIPPURP"  "DWELTIME"  "TDWKND"    "VMT_MILE" 
+    ##  [31] "DRVR_FLG"  "WHYTRP1S"  "ONTD_P1"   "ONTD_P2"   "ONTD_P3"   "ONTD_P4"  
+    ##  [37] "ONTD_P5"   "ONTD_P6"   "ONTD_P7"   "ONTD_P8"   "ONTD_P9"   "ONTD_P10" 
+    ##  [43] "ONTD_P11"  "ONTD_P12"  "ONTD_P13"  "TDCASEID"  "TRACC_WLK" "TRACC_POV"
+    ##  [49] "TRACC_BUS" "TRACC_CRL" "TRACC_SUB" "TRACC_OTH" "TREGR_WLK" "TREGR_POV"
+    ##  [55] "TREGR_BUS" "TREGR_CRL" "TREGR_SUB" "TREGR_OTH" "WHYTO"     "TRAVDAY"  
+    ##  [61] "HOMEOWN"   "HHSIZE"    "HHVEHCNT"  "HHFAMINC"  "DRVRCNT"   "HHSTATE"  
+    ##  [67] "HHSTFIPS"  "NUMADLT"   "WRKCOUNT"  "TDAYDATE"  "HHRESP"    "LIF_CYC"  
+    ##  [73] "MSACAT"    "MSASIZE"   "RAIL"      "URBAN"     "URBANSIZE" "URBRUR"   
+    ##  [79] "GASPRICE"  "CENSUS_D"  "CENSUS_R"  "CDIVMSAR"  "HH_RACE"   "HH_HISP"  
+    ##  [85] "HH_CBSA"   "SMPLSRCE"  "R_AGE"     "EDUC"      "R_SEX"     "PRMACT"   
+    ##  [91] "PROXY"     "WORKER"    "DRIVER"    "WTTRDFIN"  "WHYTRP90"  "R_AGE_IMP"
+    ##  [97] "R_SEX_IMP" "HBHUR"     "HTHTNRNT"  "HTPPOPDN"  "HTRESDN"   "HTEEMPDN" 
+    ## [103] "HBHTNRNT"  "HBPPOPDN"  "HBRESDN"
+
+### define modes
+
+Uses TRPTRANS from NHTS
+
+First I’m going to create smaller bins of modes because there are too
+many, there are like 17 or more The definitions are here: GEMS master
+data dictionary, in the clean_mode_choice_data tab:
+<https://docs.google.com/spreadsheets/d/1RVxqALDAE1u4SC569Cq373_fafaE1nZiZBJJMiRTYu8/edit#gid=81250909>
+
+![](pngs/TRPTRANS_dictionary.png)
+
+``` r
+df_trips <- df_trips  %>%
+  mutate(mode = 
+      case_when(TRPTRANS %in% c("01") ~ 'walk',
+                TRPTRANS %in% c("02") ~ 'bike',
+                TRPTRANS %in% c(10,11,12,13,14) ~ 'bus', 
+                TRPTRANS %in% c(15, 16)~ 'rail',
+                TRPTRANS %in% c(17) ~ 'taxi',
+      # CONTESTING:
+                  TRPTRANS %in% c("03","04","05","06",          "09","18") ~ 'hv', 
+                # TRPTRANS %in% c("03","04","05","06",     "08") ~ 'personal vehicle', # PROPOSED
+                # TRPTRANS %in% c(18) ~ 'rental', # PROPOSED
+                  TRPTRANS %in% c(                    "07","08") ~ 'scooter', 
+                # 09 is RV (motor home, ATV, snowmobile)
+                # 18 is rental car
+                # 08 is motorcycle / moped
+                # 07 is golf cart / segway
+                # TRPTRANS %in% c(19) ~ 'something else', # PROPOSED
+                TRUE ~ "other")
+      )
+
+
+summary <- df_trips |>
+    group_by(TRPTRANS, mode) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(TRPTRANS)),
+            Nmissing = sum(is.na(mode)),
     .groups = "drop") |> 
   arrange(TRPTRANS)   
 summary
@@ -78,63 +159,144 @@ summary
 
 <div class="kable-table">
 
-| TRPTRANS | countN | Nmissing |
-|:---------|-------:|---------:|
-| -7       |      2 |        0 |
-| -8       |     13 |        0 |
-| -9       |      1 |        0 |
-| 01       |  81288 |        0 |
-| 02       |   8034 |        0 |
-| 03       | 396931 |        0 |
-| 04       | 229466 |        0 |
-| 05       |  60463 |        0 |
-| 06       | 108303 |        0 |
-| 07       |    826 |        0 |
-| 08       |   2088 |        0 |
-| 09       |    814 |        0 |
-| 10       |  11313 |        0 |
-| 11       |   6616 |        0 |
-| 12       |    624 |        0 |
-| 13       |   1581 |        0 |
-| 14       |    120 |        0 |
-| 15       |   1148 |        0 |
-| 16       |   3326 |        0 |
-| 17       |   2813 |        0 |
-| 18       |   2006 |        0 |
-| 19       |   1823 |        0 |
-| 20       |    458 |        0 |
-| 97       |   3515 |        0 |
+| TRPTRANS | mode    | countN | Nmissing |
+|:---------|:--------|-------:|---------:|
+| -7       | other   |      2 |        0 |
+| -8       | other   |     13 |        0 |
+| -9       | other   |      1 |        0 |
+| 01       | walk    |  81288 |        0 |
+| 02       | bike    |   8034 |        0 |
+| 03       | hv      | 396931 |        0 |
+| 04       | hv      | 229466 |        0 |
+| 05       | hv      |  60463 |        0 |
+| 06       | hv      | 108303 |        0 |
+| 07       | scooter |    826 |        0 |
+| 08       | scooter |   2088 |        0 |
+| 09       | hv      |    814 |        0 |
+| 10       | bus     |  11313 |        0 |
+| 11       | bus     |   6616 |        0 |
+| 12       | bus     |    624 |        0 |
+| 13       | bus     |   1581 |        0 |
+| 14       | bus     |    120 |        0 |
+| 15       | rail    |   1148 |        0 |
+| 16       | rail    |   3326 |        0 |
+| 17       | taxi    |   2813 |        0 |
+| 18       | hv      |   2006 |        0 |
+| 19       | other   |   1823 |        0 |
+| 20       | other   |    458 |        0 |
+| 97       | other   |   3515 |        0 |
 
 </div>
 
-### define modes
+``` r
+summary <- df_trips |>
+    group_by(mode) |>
+  summarise(countN = n() ,
+            Nmissing = sum(is.na(mode)),
+    .groups = "drop") |> 
+  arrange(-countN)   
+summary
+```
 
-First I’m going to create smaller bins of modes because there are too
-many, there are like 17 or more The definitions are here: GEMS master
-data dictionary, in the clean_mode_choice_data tab:
-<https://docs.google.com/spreadsheets/d/1RVxqALDAE1u4SC569Cq373_fafaE1nZiZBJJMiRTYu8/edit#gid=81250909>
+<div class="kable-table">
 
-“Mode_chosen Generated from NHTS field ‘trptrans’. trptrans
-=3,4,5,6,18,9 ~ ‘hv’, \# human driving vehicle trptrans =2 ~ ‘bike’,
-trptrans =7,8 ~ ‘scooter’, trptrans =1 ~ ‘walk’, trptrans = 10-14 ~
-‘bus’, \# now we only have 11 in the data trptrans =15, 16~ ‘rail’,
-trptrans =17 ~ ‘taxi’, Rest ~ ‘other’”
+| mode    | countN | Nmissing |
+|:--------|-------:|---------:|
+| hv      | 797983 |        0 |
+| walk    |  81288 |        0 |
+| bus     |  20254 |        0 |
+| bike    |   8034 |        0 |
+| other   |   5812 |        0 |
+| rail    |   4474 |        0 |
+| scooter |   2914 |        0 |
+| taxi    |   2813 |        0 |
 
-## define trip purpose
+</div>
 
-“trip purpose generated from NHTS field ‘whytrp1s’. whytrp1s =50~
-‘social’, whytrp1s =1 ~ ‘home’, whytrp1s =10~ ‘work’, whytrp1s =40 ~
-‘shopping’, whytrp1s =70 ~ ‘transp_someone’, whytrp1s 30 ~ ‘medical’,
-whytrp1s =80~ ‘meals’, whytrp1s =20~ ‘school’, Rest ~ ‘other’”
+### define trip purpose
 
-## define time bins
+trip_purpose generated from NHTS field ‘whytrp1s’
+![](pngs/WHYTRP1S_dictionary.png)
 
-“travel time bins generated from NHTS field ‘strttime’. morning rush
-hour \[6am, 9am), evening rush hour \[4pm, 7pm\], and other hours. 600
-\>= strttime \<900 ~ ‘morning_rush’, 1600 \>= strttime \<=1900 ~
-‘evening_rush’, rest ~ ‘other_time’”
+``` r
+df_trips <- df_trips  %>%
+  mutate(trip_purpose = 
+      case_when(WHYTRP1S %in% c("01") ~ 'home',
+                WHYTRP1S %in% c("10") ~ 'work',
+                WHYTRP1S %in% c("20") ~ 'school',
+                WHYTRP1S %in% c("30") ~ 'medical',
+                WHYTRP1S %in% c("40") ~ 'shopping',
+                WHYTRP1S %in% c("50") ~ 'social',
+                WHYTRP1S %in% c("70") ~ 'transp_someone',
+                WHYTRP1S %in% c("80") ~ 'meals',
+                TRUE ~ "other")
+      )
+summary <- df_trips |>
+    group_by(WHYTRP1S, trip_purpose) |>
+  summarise(countN = n() ,
+            Nmissing = sum(is.na(mode)),
+    .groups = "drop") |> 
+  arrange(WHYTRP1S)   
+summary
+```
 
-## define distance bins
+<div class="kable-table">
+
+| WHYTRP1S | trip_purpose   | countN | Nmissing |
+|:---------|:---------------|-------:|---------:|
+| 01       | home           | 318777 |        0 |
+| 10       | work           | 110590 |        0 |
+| 20       | school         |  43397 |        0 |
+| 30       | medical        |  16784 |        0 |
+| 40       | shopping       | 184126 |        0 |
+| 50       | social         | 100284 |        0 |
+| 70       | transp_someone |  56377 |        0 |
+| 80       | meals          |  72327 |        0 |
+| 97       | other          |  20910 |        0 |
+
+</div>
+
+### define time bins
+
+trip_purpose generated from NHTS field ‘STRTTIME’
+![](pngs/STRTTIME_dictionary.png)
+
+``` r
+# convert to numeric
+df_trips <- df_trips  %>%
+  mutate(STRTTIME_num = as.numeric(STRTTIME))
+```
+
+``` r
+df_trips <- df_trips  %>%
+  mutate(start_time_bin = 
+      case_when(STRTTIME_num <=  600 ~ 'morning_rush',
+                STRTTIME_num >= 1600 ~ 'evening_rush',
+                is.na(STRTTIME_num)  ~ 'missing time',
+                TRUE ~ "other_time")
+      )
+summary <- df_trips |>
+    group_by(start_time_bin) |>
+  summarise(countN = n() ,
+            "Min start time" = min(STRTTIME_num),
+            "Max start time" = max(STRTTIME_num),
+            Nmissing = sum(is.na(mode)),
+    .groups = "drop") |> 
+  arrange(start_time_bin)   
+summary
+```
+
+<div class="kable-table">
+
+| start_time_bin | countN | Min start time | Max start time | Nmissing |
+|:---------------|-------:|---------------:|---------------:|---------:|
+| evening_rush   | 298139 |           1600 |           2359 |        0 |
+| morning_rush   |  20909 |              0 |            600 |        0 |
+| other_time     | 604524 |            601 |           1559 |        0 |
+
+</div>
+
+# define distance bins
 
 in the “transition_matrix” tab of the GEMS Master Data dictionary sheet
 DistanceBinID “Trip distance bin defined as following: • bin1 - distance
@@ -143,6 +305,10 @@ distance between 2 and 4 miles • bin4 - distance between 4 and 8 miles •
 bin5 - distance between 8 and 15 miles • bin6 - distance between 15 and
 20 miles • bin7 - distance between 20 and 35 miles • bin8 - distance
 above 35 miles” \### Note is this inclusive? Check at some point
+
+## Dataset: …
+
+## Dataset: …
 
 ``` r
 # Houshold GEOIDs?
@@ -170,95 +336,6 @@ above 35 miles” \### Note is this inclusive? Check at some point
 ```
 
 ## Read in tripsct because it has the county fips codes and census tract to crosswalk to
-
-# Next Steps
-
-## Overview & background
-
-Are there enough counties where there are enough trips within them
-broken down into heterogeneity that we want to estimate the coefs
-
-enough counties with enough trips for each mode –\> that’s what we need
-
-then want to divide by heterogeneous groups.
-
-Next to get heads around: Do we need number of or proportion for each
-section for each to do the proportional mnl thing Also do we need to
-weight it?
-
-Goal: how should we collapse the data
-
-## clean data enough that we can get a lots of different histograms
-
-## Histogram of trip counts by county. Each county will have a number of trips that’s within the county
-
-------------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
-- 
-
-## Histogram of trip counts by mode by county
-
-## Also pull in the micro geotype indicators
-
-i’ll need to ask Xiaodan where the cross walk is between census-tract
-and microgeotypes
-
-## TEMPO – look at how they did it
-
-Use nhts does county level does fractional split logit? they have bins
-of income levels how did they decide to use their bins? Were they
-defining the bins <https://www.nrel.gov/transportation/tempo-model.html>
-
-Note: keep all new vars etc, new definitions, at the beginning or in a
-separate code
-
-## Future next step
-
-### doing a mnl fractional, even if not totally decided on how to make one unit of obs
-
-filter raw trip in the NHTS by origin county tripct is census tract –
-last 4 didgets or something is county number of trips by county by mode
-
-- After that then \*
-
-*User Classes* another need to have definitions of user classes income,
-age, vehicle ownership – do we want to keep that definition? Use this to
-look at definitions – but don’t merge with it bc maybe it excluded some
-trips: nhts_user_classes_inc_veh_sr.csv 264234 C:FHWA folksXiaodan
-
-*Time Classes* there’s a definition somewhere
-
-*Distance Class* Can use this to see what the different classes are –
-but these merge with geo types not with census TransitionMatrix-100m.csv
-31919 C:FHWA folksXiaodan
-
-``` r
-#df <- load("C:/FHWA_R2/This is from before/Mode_choice_estimation/Data/ModeChoice_Tour_A.Rdata")
-```
-
-# train distance data merged to trip locations.
-
-load(file=
-file.path(datadir,‘NHTS_tract_origin_train_dist_transgeo.RData’))
-
-# NOTE: “ct” is restricted, only data for us, like hhct
-
-# “pub” public data
-
-# “perwgt” is also public
-
-# Step 1. Tripspub, maybe merge to ct. Need to merge to county. Take the
-
-# raw trips, have the county / fips codes, then look at how many trips by county
-
-# do we have per trips
-
-# tract IDs, then the microgeotypes – crosswalk of tract to geotype
-
-This is from before I talked to Anna and Xiaodan: \#— \# END \# \# END
-\# \*\*\* Notes \*\*\*
 
 ``` r
 1 + 1
