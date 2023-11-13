@@ -44,11 +44,10 @@ source(file.path(root, "paths.R")) # Runs paths.R file found in users Github rep
 data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 ```
 
-# DATA - OPEN, CLEAN
+# DATA - Open and Clean
 These data sets are from the NHST 2017 survey.
 Define and clean each dataset.
 - trippub is person-trip, without geo IDs
-
 
 ## Dataset: trippub
 
