@@ -106,7 +106,7 @@ df_trips_only_small_wide <- df_trips_only_small  |>
     values_from = mode,
     values_fn = n_distinct
   )
-df_trips_only_small_wide
+#df_trips_only_small_wide
 ```
 
 
@@ -117,7 +117,7 @@ df_county_origin <- df_trips_only_small |>
   summarise(Ntrips = n(),
             across(contains("mode"),~n_distinct(.x),.names = "{.col}_Ndis"),
     .groups = "drop")
-df_county_origin
+#df_county_origin
 ```
 ```{r}
 ggplot(df_county_origin,aes(x=Ntrips)) +
