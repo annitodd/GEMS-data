@@ -49,33 +49,43 @@ data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 ```
 
 # DATA - Open and Clean
-## Raw data
+## steps and description of data
+Step 1. Tripspub, maybe merge to ct. Need to merge to county. Take the
+raw trips, have the county / fips codes, then look at how many trips by county
+do we have per trips
+tract IDs, then the microgeotypes -- crosswalk of tract to geotype
 
-These data sets are from the NHST 2017 survey. Documentation is [here](https://nhts.ornl.gov/documentation), with useful [user's guide](https://nhts.ornl.gov/assets/NHTS2017_UsersGuide_04232019_1.pdf), and [codebook](https://nhts.ornl.gov/assets/codebook_v1.2.pdf), and very simple [data dictionary](https://nhts.ornl.gov/assets/dictionary_v1_2.xlsx) that is also saved in Github here.
+These data sets are from the NHST 2017 survey. Documentation is [here](https://nhts.ornl.gov/documentation), with useful [user's guide](https://nhts.ornl.gov/assets/NHTS2017_UsersGuide_04232019_1.pdf), and [codebook](https://nhts.ornl.gov/assets/codebook_v1.2.pdf), and very simple [data dictionary](https://nhts.ornl.gov/assets/dictionary_v1_2.xlsx) that is also saved in Github [here](https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice/dictionary_v1_2.csv).
 
 Data file structure screen shot:
 
-![](pngs/NHST_data_file_structure.png){width="680"}
+![](pngs/NHTS_Schematic.png){width="480"}
+
+![](pngs/NHTS_Summary_of_content.png){width="300"}
+
+![](pngs/NHST_data_file_structure.png){width="480"}
 
 -   trippub: each row is person-trip, without geo IDs. It's public dataset.
 -   tripsct: County-Tract Crosswalk
 -   hhct.csv: Household GEOIDs
 
-## Dataset: Person-Trips (trippub)
+## Dataset - trippub: Person-Trips 
 
 This has all of the trip information for every trip a household took in the survey, each row is a trip for each person that answered the survey
 
-```{r load, cache=TRUE}
-trippub <- read_csv(file=file.path(data_path, 'trippub.csv'))
-names(trippub)
-saveRDS(trippub, "df_trips.rds")
-rm(trippub)
-```
-
 ```{r}
-df_trips <- readRDS("df_trips.rds")
-View(df_trips)
-names(df_trips)
+df_trippub <- read_csv(file=file.path(data_path, 'trippub.csv'))
+names(df_trippub)
+#saveRDS(trippub, "df_trippub.rds")
+#rm(trippub)
+View(df_trippub)
+names(df_trippub)
+```
+### create key and ID vars
+```{r}
+df_trippub <- df_trippub  %>%
+  mutate(rawdatafrom_trippub = 1)
+
 ```
 
 ### define modes
@@ -87,7 +97,7 @@ First I'm going to create smaller bins of modes because there are too many, ther
 ![](pngs/TRPTRANS_dictionary.png)
 
 ```{r}
-df_trips <- df_trips  %>%
+df_trippub <- df_trippub  %>%
   mutate(mode = 
       case_when(TRPTRANS %in% c("01") ~ 'walk',
                 TRPTRANS %in% c("02") ~ 'bike',
@@ -108,7 +118,7 @@ df_trips <- df_trips  %>%
       )
 
 
-summary <- df_trips |>
+summary <- df_trippub |>
     group_by(TRPTRANS, mode) |>
   summarise(countN = n() ,
             Nmissing = sum(is.na(mode)),
@@ -118,7 +128,7 @@ summary
 ```
 
 ```{r}
-summary <- df_trips |>
+summary <- df_trippub |>
     group_by(mode) |>
   summarise(countN = n() ,
             Nmissing = sum(is.na(mode)),
@@ -132,7 +142,7 @@ summary
 trip_purpose generated from NHTS field 'whytrp1s' ![](pngs/WHYTRP1S_dictionary.png)
 
 ```{r}
-df_trips <- df_trips  %>%
+df_trippub <- df_trippub  %>%
   mutate(trip_purpose = 
       case_when(WHYTRP1S %in% c("01") ~ 'home',
                 WHYTRP1S %in% c("10") ~ 'work',
@@ -144,7 +154,7 @@ df_trips <- df_trips  %>%
                 WHYTRP1S %in% c("80") ~ 'meals',
                 TRUE ~ "other")
       )
-summary <- df_trips |>
+summary <- df_trippub |>
     group_by(WHYTRP1S, trip_purpose) |>
   summarise(countN = n() ,
             Nmissing = sum(is.na(mode)),
@@ -159,19 +169,19 @@ trip_purpose generated from NHTS field 'STRTTIME' ![](pngs/STRTTIME_dictionary.p
 
 ```{r}
 # convert to numeric
-df_trips <- df_trips  %>%
+df_trippub <- df_trippub  %>%
   mutate(STRTTIME_num = as.numeric(STRTTIME))
 ```
 
 ```{r}
-df_trips <- df_trips  %>%
+df_trippub <- df_trippub  %>%
   mutate(start_time_bin = 
       case_when(STRTTIME_num <=  600 ~ 'morning_rush',
                 STRTTIME_num >= 1600 ~ 'evening_rush',
                 is.na(STRTTIME_num)  ~ 'missing time',
                 TRUE ~ "other_time")
       )
-summary <- df_trips |>
+summary <- df_trippub |>
     group_by(start_time_bin) |>
   summarise(countN = n() ,
             "Min start time" = min(STRTTIME_num),
@@ -185,38 +195,85 @@ summary
 ## Dataset - tripsct: County-Tract Crosswalk
 
 Read in tripsct because it has the county fips codes and census tract to crosswalk
+it is possibly the raw trip with od  -- only has tract
+trip path with distance
+
+```{r}
+df_tripct <- read_csv(file=file.path(data_path, 'tripct.csv'))
+names(df_tripct)
+View(df_tripct)
+names(df_tripct)
+```
+### create key and ID vars
+```{r}
+df_tripct <- df_tripct  %>%
+  mutate(rawdatafrom_tripct = 1)
+```
+
 
 ## Dataset - hhct.csv: Household GEOIDs
-
+hhct is restricted data. maps households to trips. hhpub has public info for household information demographics location of household info from survey
 ```{r}
-# Houshold GEOIDs?
+df_hhct <- read_csv(file=file.path(data_path, 'hhct.csv'))
+names(df_hhct)
+View(df_hhct)
+names(df_hhct)
+```
+### create key and ID vars
+```{r}
+df_hhct <- df_hhct  %>%
+  mutate(rawdatafrom_hhct = 1)
+```
 
 
-#df <- read.csv(file = file.path(datadir, "hhct.csv" ))  # household, trip ct.csv -- resticted 
-
-#
-
-
+# DATA - Merge
+Examine the unique primary keys
+```{r}
+#these should be 0, meaning that these uniquely identify the observations:
+df_trippub |>  
+  group_by(HOUSEID,PERSONID,TDTRPNUM) |>  
+  summarise(n = n()) |>  
+  filter(n > 1)
+df_tripct |>  
+  group_by(HOUSEID,PERSONID,TDTRPNUM) |>  
+  summarise(n = n()) |>  
+  filter(n > 1)
+df_hhct |>  
+  group_by(HOUSEID) |>  
+  summarise(n = n()) |>  
+  filter(n > 1)
+# same unique?
+df_trippub |>
+  group_by(HOUSEID) %>% 
+  summarise(n = n(),
+            n_distinct(HOUSEID))
 ```
 
 ```{r}
-#hhpub -- # this has the household information , demographics, location of household, info from survey
-  
-  
-# PRIVATE data, maps household to trips
-#location <- read.csv(file = file.path(datadir, "hhct.csv" ))  # household, trip ct.csv -- resticted data -- only has household location -- links
-
-#df <- tripct.csv # raw trip with od  -- only has tract
-# trip path with distance
+df_temp <- full_join(df_trippub,df_tripct,
+                     by=c("HOUSEID","PERSONID","TDTRPNUM"))
+df_temp
+```
+```{r}
+df_temp2 <- full_join(df_temp,df_hhct,
+                     by=c("HOUSEID"))
+df_temp2
+df_temp2 <- left_join(df_temp,df_hhct,
+                     by=c("HOUSEID"))
+df_temp2
+View(df_temp2)
 ```
 
-```{r}
-1 + 1
+# END-------------------------------
+
+```{r exit}
 knitr::knit_exit()
 ```
+#------------  Notes \*\*\*
 
-#--- \# END \# \# END \# \*\*\* Notes \*\*\*
-
+location <- location %>% 
+  dplyr::mutate(hometract = HHSTFIPS * 10^9 + HHCNTYFP*10^6 + HHCT) %>% 
+  dplyr::select(HOUSEID, hometract)
 # Next Steps
 
 # define distance bins
