@@ -122,9 +122,12 @@ df_county_origin
 ```{r}
 ggplot(df_county_origin,aes(x=Ntrips)) +
   geom_histogram(binwidth=0.5) +
-  coord_cartesian(ylim = c(0, 50))
-  
-
+  coord_cartesian(xlim = c(0, 50))
+```
+```{r}
+ggplot(df_county_origin,aes(x=mode_Ndis)) +
+  geom_histogram(binwidth=0.5) +
+  coord_cartesian(xlim = c(0, 50))
 ```
 
           across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
