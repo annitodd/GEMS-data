@@ -39,6 +39,10 @@ Open datasets, clean
 merge datasets
 save resulting datasets
 ## result
+merged dataset, full joined:
+10-mode-choice-cleaning_output-full-merged.parquet
+smaller dataset with fewer vars: 
+(TBD)
 
 Merge tripspub to ctTripspub, maybe merge to ct. Need to merge to county. Take the raw trips, have the county / fips codes, then look at how many trips by county do we have per trips tract IDs, then the microgeotypes -- crosswalk of tract to geotype
 
@@ -57,7 +61,6 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ## libraries
 
 ```{r}
-
 library(arrow)
 library(tidyverse)
 library(readxl)
@@ -268,6 +271,11 @@ df_trippub |>
   summarise(n = n(),
             n_distinct(HOUSEID))
 ```
+
+```{r stop_knit}
+#can't keep this in memory?
+knitr::knit_exit()
+```
 ## merge trippub to tripct
 ```{r}
 df_temp <- full_join(df_trippub,df_tripct,
@@ -275,10 +283,6 @@ df_temp <- full_join(df_trippub,df_tripct,
 df_temp
 ```
 
-```{r exit}
-#can't keep this in memory?
-knitr::knit_exit()
-```
 
 ## merge that to hhct with full join
 ```{r}
