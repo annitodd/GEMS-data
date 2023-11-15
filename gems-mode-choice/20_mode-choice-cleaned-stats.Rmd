@@ -94,7 +94,7 @@ how many trips in each county
 choose only some vars
 ```{r}
 df_trips_only_small <- df_trips_only |> 
-  select(mode, trip_purpose, contains("ORIG"))
+  select(mode, trip_purpose, ORIG_COUNTRY,ORIG_ST,ORIG_CNTY)
 df_trips_only_small %>% 
   distinct(mode,trip_purpose)
 ```
@@ -103,7 +103,8 @@ make wider dataset
 df_trips_only_small_wide <- df_trips_only_small  |>
   pivot_wider(
     names_from = mode,
-    values_from = mode
+    values_from = mode,
+    values_fn = n_distinct
   )
 df_trips_only_small_wide
 ```
@@ -111,13 +112,21 @@ df_trips_only_small_wide
 
 
 ```{r}
-group_by(ORIG_ST,ORIG_CNTY) |>
+df_county_origin <- df_trips_only_small |>
+  group_by(ORIG_ST,ORIG_CNTY) |>
   summarise(Ntrips = n(),
             across(contains("mode"),~n_distinct(.x),.names = "{.col}_Ndis"),
-            #across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
     .groups = "drop")
 df_county_origin
 ```
+```{r}
+ggplot(df_county_origin,aes(x=Ntrips)) +
+  geom_histogram(binwidth=0.5) +
+  coord_cartesian(ylim = c(0, 50))
+  
+
+```
+
           across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
             across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
  
