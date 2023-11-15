@@ -64,10 +64,9 @@ Data file structure screen shot:
 ![](pngs/NHTS_Summary_of_content.png){width="300"}
 
 ![](pngs/NHST_data_file_structure.png){width="480"}
-
--   trippub: each row is person-trip, without geo IDs. It's public dataset.
--   tripsct: County-Tract Crosswalk
--   hhct.csv: Household GEOIDs
+-   trippub: each row is household-person-trip, without geo IDs, with lots of descriptions of the trips. It's public dataset.
+-   tripsct: each row is a household-person-trip, with only geo IDs for *each* trip, like, trip origin geoID and trip destination geoID. The geo IDs are: 2 didget state code, county code, and 6 didget tract code.
+-   hhct.csv: each row is a household, with a geo ID for the household.
 
 ## Dataset - trippub: Person-Trips 
 
