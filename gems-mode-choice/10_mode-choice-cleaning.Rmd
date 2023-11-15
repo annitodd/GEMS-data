@@ -49,6 +49,7 @@ data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 ```
 
 # DATA - Open and Clean
+
 ## Raw data
 
 These data sets are from the NHST 2017 survey. Documentation is [here](https://nhts.ornl.gov/documentation), with useful [user's guide](https://nhts.ornl.gov/assets/NHTS2017_UsersGuide_04232019_1.pdf), and [codebook](https://nhts.ornl.gov/assets/codebook_v1.2.pdf), and very simple [data dictionary](https://nhts.ornl.gov/assets/dictionary_v1_2.xlsx) that is also saved in Github here.
@@ -57,9 +58,9 @@ Data file structure screen shot:
 
 ![](pngs/NHST_data_file_structure.png){width="680"}
 
--   trippub: each row is person-trip, without geo IDs. It's public dataset.
--   tripsct: County-Tract Crosswalk
--   hhct.csv: Household GEOIDs
+-   trippub: each row is household-person-trip, without geo IDs, with lots of descriptions of the trips. It's public dataset.
+-   tripsct: each row is a household-person-trip, with only geo IDs for *each* trip, like, trip origin geoID and trip destination geoID. The geo IDs are: 2 didget state code, county code, and 6 didget tract code.
+-   hhct.csv: each row is a household, with a geo ID for the household.
 
 ## Dataset: Person-Trips (trippub)
 
@@ -456,3 +457,4 @@ readr::write_csv(problems,file = paste0(data_dir_on_this_machine,
          title = "Histogram of number of employees per company",
          caption = "* Binwidth = 10\n ** Total number of companies is 275"))
 ```
+
