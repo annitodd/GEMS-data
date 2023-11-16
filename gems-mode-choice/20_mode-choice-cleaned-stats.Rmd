@@ -121,14 +121,28 @@ df_county_origin <- df_trips_only_small |>
 ```
 ```{r}
 ggplot(df_county_origin,aes(x=Ntrips)) +
-  geom_histogram(binwidth=0.5) +
+  geom_histogram(binwidth=1) +
   coord_cartesian(xlim = c(0, 50))
 ```
 ```{r}
 ggplot(df_county_origin,aes(x=mode_Ndis)) +
-  geom_histogram(binwidth=0.5) +
-  coord_cartesian(xlim = c(0, 50))
+  geom_histogram(binwidth=1) 
+#  coord_cartesian(xlim = c(0, 50))
 ```
+
+
+```{r}
+df_county_origin <- df_trips_only_small |>
+  group_by(mode,trip_purpose) |>
+  summarise(Ntrips = n(),
+            #across(contains("mode"),~n_distinct(.x),.names = "{.col}_Ndis"),
+    .groups = "drop")
+#df_county_origin
+df_county_origin
+```
+
+
+
 
           across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
             across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),

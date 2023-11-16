@@ -356,7 +356,7 @@ df_county_origin <- df_trips_only_small |>
 
 ``` r
 ggplot(df_county_origin,aes(x=Ntrips)) +
-  geom_histogram(binwidth=0.5) +
+  geom_histogram(binwidth=1) +
   coord_cartesian(xlim = c(0, 50))
 ```
 
@@ -364,11 +364,14 @@ ggplot(df_county_origin,aes(x=Ntrips)) +
 
 ``` r
 ggplot(df_county_origin,aes(x=mode_Ndis)) +
-  geom_histogram(binwidth=0.5) +
-  coord_cartesian(xlim = c(0, 50))
+  geom_histogram(binwidth=1) 
 ```
 
 ![](20_mode-choice-cleaned-stats_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+``` r
+#  coord_cartesian(xlim = c(0, 50))
+```
 
           across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
             across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),

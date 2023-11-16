@@ -1,4 +1,4 @@
-Annika created this code doc on 10/21/2023. Last compiled on 2023-11-15
+Annika created this code doc on 10/21/2023. Last compiled on 2023-11-16
 
 - [Description and Overview](#description-and-overview)
 - [Setup](#setup)
@@ -133,7 +133,7 @@ names(df_trippub)
 ``` r
 #saveRDS(trippub, "df_trippub.rds")
 #rm(trippub)
-View(df_trippub)
+# View(df_trippub)
 names(df_trippub)
 ```
 
@@ -182,20 +182,9 @@ df_trippub <- df_trippub  %>%
                 TRPTRANS %in% c(10,11,12,13,14) ~ 'bus', 
                 TRPTRANS %in% c(15, 16)~ 'rail',
                 TRPTRANS %in% c(17) ~ 'taxi',
-      # CONTESTING:
-                  TRPTRANS %in% c("03","04","05","06",          "09","18") ~ 'hv', 
-                # TRPTRANS %in% c("03","04","05","06",     "08") ~ 'personal vehicle', # PROPOSED
-                # TRPTRANS %in% c(18) ~ 'rental', # PROPOSED
-                  TRPTRANS %in% c(                    "07","08") ~ 'scooter', 
-                # 09 is RV (motor home, ATV, snowmobile)
-                # 18 is rental car
-                # 08 is motorcycle / moped
-                # 07 is golf cart / segway
-                # TRPTRANS %in% c(19) ~ 'something else', # PROPOSED
+                TRPTRANS %in% c("03","04","05","06","08","09","18") ~ 'hv', 
                 TRUE ~ "other")
       )
-
-
 summary <- df_trippub |>
     group_by(TRPTRANS, mode) |>
   summarise(countN = n() ,
@@ -207,32 +196,32 @@ summary
 
 <div class="kable-table">
 
-| TRPTRANS | mode    | countN | Nmissing |
-|:---------|:--------|-------:|---------:|
-| -7       | other   |      2 |        0 |
-| -8       | other   |     13 |        0 |
-| -9       | other   |      1 |        0 |
-| 01       | walk    |  81288 |        0 |
-| 02       | bike    |   8034 |        0 |
-| 03       | hv      | 396931 |        0 |
-| 04       | hv      | 229466 |        0 |
-| 05       | hv      |  60463 |        0 |
-| 06       | hv      | 108303 |        0 |
-| 07       | scooter |    826 |        0 |
-| 08       | scooter |   2088 |        0 |
-| 09       | hv      |    814 |        0 |
-| 10       | bus     |  11313 |        0 |
-| 11       | bus     |   6616 |        0 |
-| 12       | bus     |    624 |        0 |
-| 13       | bus     |   1581 |        0 |
-| 14       | bus     |    120 |        0 |
-| 15       | rail    |   1148 |        0 |
-| 16       | rail    |   3326 |        0 |
-| 17       | taxi    |   2813 |        0 |
-| 18       | hv      |   2006 |        0 |
-| 19       | other   |   1823 |        0 |
-| 20       | other   |    458 |        0 |
-| 97       | other   |   3515 |        0 |
+| TRPTRANS | mode  | countN | Nmissing |
+|:---------|:------|-------:|---------:|
+| -7       | other |      2 |        0 |
+| -8       | other |     13 |        0 |
+| -9       | other |      1 |        0 |
+| 01       | walk  |  81288 |        0 |
+| 02       | bike  |   8034 |        0 |
+| 03       | hv    | 396931 |        0 |
+| 04       | hv    | 229466 |        0 |
+| 05       | hv    |  60463 |        0 |
+| 06       | hv    | 108303 |        0 |
+| 07       | other |    826 |        0 |
+| 08       | hv    |   2088 |        0 |
+| 09       | hv    |    814 |        0 |
+| 10       | bus   |  11313 |        0 |
+| 11       | bus   |   6616 |        0 |
+| 12       | bus   |    624 |        0 |
+| 13       | bus   |   1581 |        0 |
+| 14       | bus   |    120 |        0 |
+| 15       | rail  |   1148 |        0 |
+| 16       | rail  |   3326 |        0 |
+| 17       | taxi  |   2813 |        0 |
+| 18       | hv    |   2006 |        0 |
+| 19       | other |   1823 |        0 |
+| 20       | other |    458 |        0 |
+| 97       | other |   3515 |        0 |
 
 </div>
 
@@ -248,16 +237,15 @@ summary
 
 <div class="kable-table">
 
-| mode    | countN | Nmissing |
-|:--------|-------:|---------:|
-| hv      | 797983 |        0 |
-| walk    |  81288 |        0 |
-| bus     |  20254 |        0 |
-| bike    |   8034 |        0 |
-| other   |   5812 |        0 |
-| rail    |   4474 |        0 |
-| scooter |   2914 |        0 |
-| taxi    |   2813 |        0 |
+| mode  | countN | Nmissing |
+|:------|-------:|---------:|
+| hv    | 800071 |        0 |
+| walk  |  81288 |        0 |
+| bus   |  20254 |        0 |
+| bike  |   8034 |        0 |
+| other |   6638 |        0 |
+| rail  |   4474 |        0 |
+| taxi  |   2813 |        0 |
 
 </div>
 

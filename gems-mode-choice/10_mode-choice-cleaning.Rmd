@@ -96,7 +96,7 @@ df_trippub <- read_csv(file=file.path(data_path, 'trippub.csv'))
 names(df_trippub)
 #saveRDS(trippub, "df_trippub.rds")
 #rm(trippub)
-View(df_trippub)
+# View(df_trippub)
 names(df_trippub)
 ```
 
@@ -124,20 +124,9 @@ df_trippub <- df_trippub  %>%
                 TRPTRANS %in% c(10,11,12,13,14) ~ 'bus', 
                 TRPTRANS %in% c(15, 16)~ 'rail',
                 TRPTRANS %in% c(17) ~ 'taxi',
-      # CONTESTING:
-                  TRPTRANS %in% c("03","04","05","06",          "09","18") ~ 'hv', 
-                # TRPTRANS %in% c("03","04","05","06",     "08") ~ 'personal vehicle', # PROPOSED
-                # TRPTRANS %in% c(18) ~ 'rental', # PROPOSED
-                  TRPTRANS %in% c(                    "07","08") ~ 'scooter', 
-                # 09 is RV (motor home, ATV, snowmobile)
-                # 18 is rental car
-                # 08 is motorcycle / moped
-                # 07 is golf cart / segway
-                # TRPTRANS %in% c(19) ~ 'something else', # PROPOSED
+                TRPTRANS %in% c("03","04","05","06","08","09","18") ~ 'hv', 
                 TRUE ~ "other")
       )
-
-
 summary <- df_trippub |>
     group_by(TRPTRANS, mode) |>
   summarise(countN = n() ,
