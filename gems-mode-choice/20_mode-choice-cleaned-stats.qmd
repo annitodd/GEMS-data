@@ -1,0 +1,247 @@
+---
+title: "Summary Stats"
+format: gfm
+---
+
+## Description and Overview
+
+This code summarizes the dataset that is a result of this script: 10_mode-choice-cleaning
+
+GitHub: This .Rmd code (possibly qmd if I have to change it with the new update to R Studio) is synced to Github, and when this code is knit, it's also synced to GitHub, as a .md file, which makes the knitted code easy to read (kind of like python code.) Currently in a FORK: <https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice>
+
+### Latest Updates
+
+11/17/2023: the next step is to go back to the 10\_ code, and merge with geotype, and then instead of collapsing by county, collapse by geotype
+
+ALSO use the raw raw data in the folder that I found
+
+## Setup
+
+### libraries
+
+```{r}
+library(arrow)
+library(tidyverse)
+library(readxl)
+library(rstudioapi)
+library(scales)
+library(writexl)
+```
+
+### file path directories
+
+```{r}
+# get current root directory of the user's Github repo
+root <- getwd() # Saves current WD 
+#while ((basename(root) != "GEMS-data")) {
+#  root <- dirname(root)
+#} # Sets root equal to the location of the Github repo
+#source(file.path(root, "paths.R")) # Runs paths.R file found in users Github repo
+```
+
+```{r}
+data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
+data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
+```
+
+## Data sets
+
+### read in big dataset
+
+full merged dataset
+
+```{r}
+df_temp <- read_parquet(file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
+names(df_temp)
+```
+
+Recall that they don't equally merge, as we saw before (hhct has more households on file). Anna notes that this is likely because lots of households took the survey but only some of them filled out the trips diary part. \## START HERE AFTER TGIVING
+
+```{r}
+df_temp |>
+  count(rawdatafrom_trippub,rawdatafrom_tripct,rawdatafrom_hhct)
+df_temp <- ungroup(df_temp)
+```
+
+The number of **observations** in the dataset (these should give the same answer):
+
+```{r}
+df_temp |> summarise(n())
+df_temp |> summarise(n_distinct(HOUSEID,PERSONID,TDTRPNUM))
+```
+
+number of **people** in the dataset:
+
+```{r}
+df_temp |> summarise(n_distinct(HOUSEID,PERSONID))
+```
+
+number of **people** in the dataset **with trips** (there are FEWER people with trips than there are total people:
+
+```{r}
+df_temp |> 
+  filter(rawdatafrom_trippub==1,rawdatafrom_tripct==1,rawdatafrom_hhct==1) |> summarise(n_distinct(HOUSEID,PERSONID))
+```
+
+The number of **households** in the dataset:
+
+```{r}
+df_temp |> summarise(n_distinct(HOUSEID))
+```
+
+The number of **households** in the dataset **with trips**:
+
+```{r}
+df_temp |> 
+  filter(rawdatafrom_trippub==1,rawdatafrom_tripct==1,rawdatafrom_hhct==1) |> summarise(n_distinct(HOUSEID))
+```
+
+```{r}
+#| output: asis
+
+df_trips_only <- df_temp |> 
+  filter(rawdatafrom_trippub==1,rawdatafrom_tripct==1,rawdatafrom_hhct==1)
+
+df_trips_only |> 
+  count(rawdatafrom_trippub,rawdatafrom_tripct,rawdatafrom_hhct)
+df_trips_only <- ungroup(df_trips_only)
+```
+
+### make smaller dataset
+
+choose only some vars:
+
+```{r}
+
+df_trips_only_small <- df_trips_only |> 
+  select(mode, trip_purpose, ORIG_COUNTRY,ORIG_ST,ORIG_CNTY)
+df_trips_only_small %>% 
+  distinct(mode,trip_purpose) 
+```
+
+then use the smaller to make wider dataset:
+
+```{r}
+df_trips_only_small <- df_trips_only_small |>
+  select(mode, ORIG_COUNTRY,ORIG_ST,ORIG_CNTY) |>
+  mutate(onePerObs = 1)
+df_trips_only_small_wide <- df_trips_only_small  |>
+  pivot_wider(
+    names_from = mode,
+    values_from = onePerObs,
+    values_fn = sum
+  )
+df_trips_only_small_wide
+```
+
+### make county level dataset
+
+```{r}
+df_county_origin <- df_trips_only_small |>
+  group_by(ORIG_ST,ORIG_CNTY) |>
+  summarise(Ntrips = n(),
+            across(contains("mode"),~n_distinct(.x),.names = "{.col}_Ndis"),
+    .groups = "drop")
+df_county_origin
+```
+
+```{r}
+df_county_origin_wide <- df_trips_only_small_wide |>
+  group_by(ORIG_ST,ORIG_CNTY) |>
+  summarise(Ntrips = n(),
+            across(contains("mode"),~n_distinct(.x),.names = "{.col}_Ndis"),
+    .groups = "drop")
+df_county_origin_wide
+```
+
+### new dataset
+
+-   county
+-   user class (income variation) use xiaodan's
+-   trip purpose -- which may or may not. Mandatory versus non-mandatory. Work and School
+-   trip distance bin
+-   departure time bin
+
+Micro-geotype -- merge this into the dataset, and then use micro type. Break up by micro geo Replace county by microtype. There are 6 microtypes. Use Origin and destination microtypes -- could do that, then there would be
+
+Need to ask Xiaodan to how to merge microtype and geo type IDs to FIPS blocks.
+
+Then Combinatorials of
+
+## Summary stats by coumty
+
+### basic
+
+how many trips in each state
+
+```{r}
+summary_table <- df_trips_only |> 
+  group_by(ORIG_ST) |>
+  summarise(   
+    Ntrips = n(),
+    .groups = "drop")
+summary_table
+```
+
+how many trips for each mode
+
+```{r}
+summary_table <- df_trips_only |> 
+  group_by(mode) |>
+  summarise(   
+    Ntrips = n(),
+    .groups = "drop") |>
+  arrange(-Ntrips)   
+summary_table
+```
+
+### by county
+
+how many trips in each county
+
+```{r}
+ggplot(df_county_origin,aes(x=Ntrips)) +
+  geom_histogram(binwidth=1) +
+  coord_cartesian(xlim = c(0, 50))
+```
+
+### by mode type by
+
+```{r}
+ggplot(df_county_origin,aes(x=mode_Ndis)) +
+  geom_histogram(binwidth=1) 
+#  coord_cartesian(xlim = c(0, 50))
+```
+
+### by purpose
+
+```{r}
+df_county_origin <- df_trips_only_small |>
+  group_by(mode,trip_purpose) |>
+  summarise(Ntrips = n(),
+            #across(contains("mode"),~n_distinct(.x),.names = "{.col}_Ndis"),
+    .groups = "drop")
+#df_county_origin
+df_county_origin
+```
+
+```         
+      across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
+        across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
+```
+
+## fractional split logit
+
+### methodology
+
+It looks like there is no need to include information about how the proportions within each observation were obtained, like how many people or whatever were used to make the proportions, see this from the seminal paper:
+
+Papke, Leslie E., and Jeffrey M. Wooldridge. \"Econometric Methods for Fractional Response Variables With an Application to 401 (K) Plan Participation Rates.\" *Journal of Applied Econometrics*, vol. 11, no. 6, 1996, pp. 619--32. *JSTOR*, http://www.jstor.org/stable/2285155. Accessed 29 Nov. 2023.
+
+![](images/fractional_split_woolridge_2.png){width="465"}
+
+This is an [example](https://www.sciencedirect.com/science/article/abs/pii/S0001457517304049) of a fractional split logit using the fraction of crashes in each TAZ as the y var, and the x vars are descriptors of the TAZ also in proportions. Lee J, Yasmin S, Eluru N, Abdel-Aty M, Cai Q. Analysis of crash proportion by vehicle type at traffic analysis zone level: A mixed fractional split multinomial logit modeling approach with spatial effects. Accid Anal Prev. 2018 Feb;111:12-22. doi: 10.1016/j.aap.2017.11.017. Epub 2017 Nov 20. PMID: 29161538.
+
+```{r}
+
+```

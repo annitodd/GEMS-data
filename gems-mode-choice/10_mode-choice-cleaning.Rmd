@@ -11,7 +11,6 @@ output:
 
 This code opens raw datasets from NHTS data in 2017, cleans them, possibly merges them, gives super basic summary tables of new stats that are a result of the new vars, and then saves as new datasets. Another code will then use the cleaned dataset from here to make more fancy summary stats.
 
-
 These data sets are from the NHST 2017 survey. Documentation is [here](https://nhts.ornl.gov/documentation), with useful [user's guide](https://nhts.ornl.gov/assets/NHTS2017_UsersGuide_04232019_1.pdf), and [codebook](https://nhts.ornl.gov/assets/codebook_v1.2.pdf), and very simple [data dictionary](https://nhts.ornl.gov/assets/dictionary_v1_2.xlsx) that is also saved in Github [here](https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice/dictionary_v1_2.csv).
 
 Data Dictionary: I'm taking the results from this code, and also putting it into the GEMS master data dictionary. They are in NEW TABs including "clean_mode_choice_data_ATB" and other tabs: <https://docs.google.com/spreadsheets/d/1RVxqALDAE1u4SC569Cq373_fafaE1nZiZBJJMiRTYu8/edit?usp=sharing>
@@ -35,17 +34,10 @@ Data file structure screen shot:
 ![](pngs/NHST_data_file_structure.png){width="180",height="344"}
 
 ## steps in this code
-Open datasets, clean
-merge datasets
-save resulting datasets
-## result
-merged dataset, full joined:
-10-mode-choice-cleaning_output-full-merged.parquet
-smaller dataset with fewer vars: 
-(TBD)
+
+Open datasets, clean merge datasets save resulting datasets \## result merged dataset, full joined: 10-mode-choice-cleaning_output-full-merged.parquet smaller dataset with fewer vars: (TBD)
 
 Merge tripspub to ctTripspub, maybe merge to ct. Need to merge to county. Take the raw trips, have the county / fips codes, then look at how many trips by county do we have per trips tract IDs, then the microgeotypes -- crosswalk of tract to geotype
-
 
 # Setup
 
@@ -234,9 +226,18 @@ df_hhct <- df_hhct  %>%
   mutate(rawdatafrom_hhct = 1)
 ```
 
+### Geo ID
+with imputation
+```{r}
+df_geoID <- read_csv(file=file.path(data_results, 'raw/ccst_geoid_key_transp_geo_with_imputation.csv'))
+names(df_geoID)
+```
+
+
 # DATA - Merge
 
 Examine the unique primary keys to make sure they're unique. These should be 0, meaning that these uniquely identify the observations:
+
 ```{r}
 df_trippub |>  
   group_by(HOUSEID,PERSONID,TDTRPNUM) |>  
@@ -255,7 +256,7 @@ df_hhct |>
 This will tell us the relationship between the files. It looks like hhct has more observations of households than trippub has households:
 
 ```{r stop_knit}
-#can't keep this in memory?
+#can't keep this in memory? So stopping the knitted part here
 knitr::knit_exit()
 ```
 
@@ -268,37 +269,44 @@ df_trippub |>
 ```
 
 ## merge trippub to tripct
+
 ```{r}
 df_temp <- full_join(df_trippub,df_tripct,
                      by=c("HOUSEID","PERSONID","TDTRPNUM"))
 df_temp
 ```
 
-
 ## merge that to hhct with full join
+
 ```{r}
 df_temp2 <- full_join(df_temp,df_hhct,
                      by=c("HOUSEID"))
 df_temp2
 ```
+
 looks like they don't equally merge, as we saw before (hhct has more households on file)
+
 ```{r}
 df_temp2 |>
   count(rawdatafrom_trippub,rawdatafrom_tripct,rawdatafrom_hhct)
 ```
+
 # DATA - Save
-Save the complete merged file as a parquet file and a csv file  
+
+Save the complete merged file as a parquet file and a csv file
+
 ```{r}
 write_parquet(df_temp2,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
 write_rds(df_temp2,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.rds"))
 
 write_csv(df_temp2,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.csv"))
 ```
+
 Save only the variables we might want into a smaller file
+
 ```{r}
 
 ```
-
 
 ## ------------------------------
 

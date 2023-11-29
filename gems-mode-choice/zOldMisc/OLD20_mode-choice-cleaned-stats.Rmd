@@ -47,7 +47,8 @@ root <- getwd() # Saves current WD
 data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
 ```
-# Read in data
+# Load Data
+## read in big dataset
 full merged dataset
 ```{r}
 df_temp <- read_parquet(file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
@@ -67,6 +68,24 @@ df_trips_only <- df_temp |>
 df_trips_only |> 
   count(rawdatafrom_trippub,rawdatafrom_tripct,rawdatafrom_hhct)
 df_trips_only <- ungroup(df_trips_only)
+```
+## make or read in smaller dataset
+choose only some vars:
+```{r}
+df_trips_only_small <- df_trips_only |> 
+  select(mode, trip_purpose, ORIG_COUNTRY,ORIG_ST,ORIG_CNTY)
+df_trips_only_small %>% 
+  distinct(mode,trip_purpose)
+```
+then use the smaller to make wider dataset:
+```{r}
+df_trips_only_small_wide <- df_trips_only_small  |>
+  pivot_wider(
+    names_from = mode,
+    values_from = mode,
+    values_fn = n_distinct
+  )
+#df_trips_only_small_wide
 ```
 # Summary stats
 ## basic
@@ -91,23 +110,8 @@ summary_table
 ```
 ## by county
 how many trips in each county
-choose only some vars
-```{r}
-df_trips_only_small <- df_trips_only |> 
-  select(mode, trip_purpose, ORIG_COUNTRY,ORIG_ST,ORIG_CNTY)
-df_trips_only_small %>% 
-  distinct(mode,trip_purpose)
-```
-make wider dataset
-```{r}
-df_trips_only_small_wide <- df_trips_only_small  |>
-  pivot_wider(
-    names_from = mode,
-    values_from = mode,
-    values_fn = n_distinct
-  )
-#df_trips_only_small_wide
-```
+
+
 
 
 
