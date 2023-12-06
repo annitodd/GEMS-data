@@ -1,6 +1,9 @@
 ---
 title: "Summary Stats"
 format: gfm
+df_print: kable
+toc: TRUE
+toc_depth: 1
 ---
 
 ## Description and Overview
@@ -11,8 +14,9 @@ GitHub: This .Rmd code (possibly qmd if I have to change it with the new update 
 
 ### Latest Updates
 
-11/17/2023: the next step is to go back to the 10\_ code, and merge with geotype, and then instead of collapsing by county, collapse by geotype
+####DEC 6: the next step is to go back to the 10\_ code, and add income
 
+another to-do is
 ALSO use the raw raw data in the folder that I found
 
 ## Setup

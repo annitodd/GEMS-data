@@ -1,5 +1,33 @@
 # Summary Stats
 
+- [Description and Overview](#description-and-overview)
+  - [Latest Updates](#latest-updates)
+- [Setup](#setup)
+  - [libraries](#libraries)
+  - [file path directories](#file-path-directories)
+- [Data: open and slim down](#data-open-and-slim-down)
+  - [read in big dataset](#read-in-big-dataset)
+- [A tibble: 1 × 4](#a-tibble-1-4)
+  - [list of variables and
+    descriptions](#list-of-variables-and-descriptions)
+  - [make smaller dataset](#make-smaller-dataset)
+  - [Examine:](#examine)
+  - [Data: make wider dataset](#data-make-wider-dataset)
+    - [make county level dataset](#make-county-level-dataset)
+    - [make microXgeotype level
+      dataset](#make-microxgeotype-level-dataset)
+    - [Wide](#wide)
+    - [new dataset](#new-dataset)
+  - [Summary stats by coumty](#summary-stats-by-coumty)
+    - [basic](#basic)
+    - [by county](#by-county)
+    - [by mode type by](#by-mode-type-by)
+    - [by purpose](#by-purpose)
+  - [Make new proportional dataset](#make-new-proportional-dataset)
+    - [by microXgeotype](#by-microxgeotype)
+  - [fractional split logit](#fractional-split-logit)
+    - [methodology](#methodology)
+
 ## Description and Overview
 
 This code summarizes the dataset that is a result of this script:
@@ -72,7 +100,6 @@ library(writexl)
 library(sjmisc)
 ```
 
-    Learn more about sjmisc with 'browseVignettes("sjmisc")'.
 
     Attaching package: 'sjmisc'
 
