@@ -1,4 +1,4 @@
-Annika created this code doc on 10/21/2023. Last compiled on 2023-11-16
+Annika created this code doc on 10/21/2023. Last compiled on 2023-12-06
 
 - [Description and Overview](#description-and-overview)
 - [Setup](#setup)
@@ -33,7 +33,7 @@ it’s also synced to GitHub, as a .md file, which makes the knitted code
 easy to read (kind of like python code.) Currently in a FORK:
 <https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice/10_mode-choice-cleaning.md>
 
-## datasets description
+## Datasets Description
 
 - trippub: each row is household-person-trip, without geo IDs, with lots
   of descriptions of the trips. It’s public dataset.
@@ -52,6 +52,15 @@ Data file structure screen shot:
 <img src="pngs/NHTS_Summary_of_content.png" width="100" />
 
 ![](pngs/NHST_data_file_structure.png){width=“180”,height=“344”}
+
+## FIPS and geotype Descriptions
+
+- Fips codes – state 2 characters, county 3 characters, census tract 6
+  characters
+- fips11_ATB is an a amalgamation – make these three things into one id,
+  using best practices, here:
+  <https://www.census.gov/programs-surveys/geography/guidance/geo-identifiers.html>,
+- fips11_ATB is created by concatenating them, not by multiplying
 
 ## steps in this code
 
@@ -160,10 +169,10 @@ names(df_trippub)
 
 ``` r
 df_trippub <- df_trippub  %>%
-  mutate(rawdatafrom_trippub = 1)
+  mutate(rawdatafrom_trippub_ATB = 1)
 ```
 
-### define modes
+### create defined modes
 
 Uses TRPTRANS from NHTS
 
@@ -176,7 +185,7 @@ data dictionary, in the clean_mode_choice_data tab:
 
 ``` r
 df_trippub <- df_trippub  %>%
-  mutate(mode = 
+  mutate(mode_ATB = 
       case_when(TRPTRANS %in% c("01") ~ 'walk',
                 TRPTRANS %in% c("02") ~ 'bike',
                 TRPTRANS %in% c(10,11,12,13,14) ~ 'bus', 
@@ -186,9 +195,9 @@ df_trippub <- df_trippub  %>%
                 TRUE ~ "other")
       )
 summary <- df_trippub |>
-    group_by(TRPTRANS, mode) |>
+    group_by(TRPTRANS, mode_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
   arrange(TRPTRANS)   
 summary
@@ -196,40 +205,40 @@ summary
 
 <div class="kable-table">
 
-| TRPTRANS | mode  | countN | Nmissing |
-|:---------|:------|-------:|---------:|
-| -7       | other |      2 |        0 |
-| -8       | other |     13 |        0 |
-| -9       | other |      1 |        0 |
-| 01       | walk  |  81288 |        0 |
-| 02       | bike  |   8034 |        0 |
-| 03       | hv    | 396931 |        0 |
-| 04       | hv    | 229466 |        0 |
-| 05       | hv    |  60463 |        0 |
-| 06       | hv    | 108303 |        0 |
-| 07       | other |    826 |        0 |
-| 08       | hv    |   2088 |        0 |
-| 09       | hv    |    814 |        0 |
-| 10       | bus   |  11313 |        0 |
-| 11       | bus   |   6616 |        0 |
-| 12       | bus   |    624 |        0 |
-| 13       | bus   |   1581 |        0 |
-| 14       | bus   |    120 |        0 |
-| 15       | rail  |   1148 |        0 |
-| 16       | rail  |   3326 |        0 |
-| 17       | taxi  |   2813 |        0 |
-| 18       | hv    |   2006 |        0 |
-| 19       | other |   1823 |        0 |
-| 20       | other |    458 |        0 |
-| 97       | other |   3515 |        0 |
+| TRPTRANS | mode_ATB | countN | Nmissing |
+|:---------|:---------|-------:|---------:|
+| -7       | other    |      2 |        0 |
+| -8       | other    |     13 |        0 |
+| -9       | other    |      1 |        0 |
+| 01       | walk     |  81288 |        0 |
+| 02       | bike     |   8034 |        0 |
+| 03       | hv       | 396931 |        0 |
+| 04       | hv       | 229466 |        0 |
+| 05       | hv       |  60463 |        0 |
+| 06       | hv       | 108303 |        0 |
+| 07       | other    |    826 |        0 |
+| 08       | hv       |   2088 |        0 |
+| 09       | hv       |    814 |        0 |
+| 10       | bus      |  11313 |        0 |
+| 11       | bus      |   6616 |        0 |
+| 12       | bus      |    624 |        0 |
+| 13       | bus      |   1581 |        0 |
+| 14       | bus      |    120 |        0 |
+| 15       | rail     |   1148 |        0 |
+| 16       | rail     |   3326 |        0 |
+| 17       | taxi     |   2813 |        0 |
+| 18       | hv       |   2006 |        0 |
+| 19       | other    |   1823 |        0 |
+| 20       | other    |    458 |        0 |
+| 97       | other    |   3515 |        0 |
 
 </div>
 
 ``` r
 summary <- df_trippub |>
-    group_by(mode) |>
+    group_by(mode_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
   arrange(-countN)   
 summary
@@ -237,26 +246,26 @@ summary
 
 <div class="kable-table">
 
-| mode  | countN | Nmissing |
-|:------|-------:|---------:|
-| hv    | 800071 |        0 |
-| walk  |  81288 |        0 |
-| bus   |  20254 |        0 |
-| bike  |   8034 |        0 |
-| other |   6638 |        0 |
-| rail  |   4474 |        0 |
-| taxi  |   2813 |        0 |
+| mode_ATB | countN | Nmissing |
+|:---------|-------:|---------:|
+| hv       | 800071 |        0 |
+| walk     |  81288 |        0 |
+| bus      |  20254 |        0 |
+| bike     |   8034 |        0 |
+| other    |   6638 |        0 |
+| rail     |   4474 |        0 |
+| taxi     |   2813 |        0 |
 
 </div>
 
 ### define trip purpose
 
-trip_purpose generated from NHTS field ‘whytrp1s’
+trip_purpose_ATB generated from NHTS field ‘whytrp1s’
 ![](pngs/WHYTRP1S_dictionary.png)
 
 ``` r
 df_trippub <- df_trippub  %>%
-  mutate(trip_purpose = 
+  mutate(trip_purpose_ATB = 
       case_when(WHYTRP1S %in% c("01") ~ 'home',
                 WHYTRP1S %in% c("10") ~ 'work',
                 WHYTRP1S %in% c("20") ~ 'school',
@@ -268,9 +277,9 @@ df_trippub <- df_trippub  %>%
                 TRUE ~ "other")
       )
 summary <- df_trippub |>
-    group_by(WHYTRP1S, trip_purpose) |>
+    group_by(WHYTRP1S, trip_purpose_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
   arrange(WHYTRP1S)   
 summary
@@ -278,23 +287,23 @@ summary
 
 <div class="kable-table">
 
-| WHYTRP1S | trip_purpose   | countN | Nmissing |
-|:---------|:---------------|-------:|---------:|
-| 01       | home           | 318777 |        0 |
-| 10       | work           | 110590 |        0 |
-| 20       | school         |  43397 |        0 |
-| 30       | medical        |  16784 |        0 |
-| 40       | shopping       | 184126 |        0 |
-| 50       | social         | 100284 |        0 |
-| 70       | transp_someone |  56377 |        0 |
-| 80       | meals          |  72327 |        0 |
-| 97       | other          |  20910 |        0 |
+| WHYTRP1S | trip_purpose_ATB | countN | Nmissing |
+|:---------|:-----------------|-------:|---------:|
+| 01       | home             | 318777 |        0 |
+| 10       | work             | 110590 |        0 |
+| 20       | school           |  43397 |        0 |
+| 30       | medical          |  16784 |        0 |
+| 40       | shopping         | 184126 |        0 |
+| 50       | social           | 100284 |        0 |
+| 70       | transp_someone   |  56377 |        0 |
+| 80       | meals            |  72327 |        0 |
+| 97       | other            |  20910 |        0 |
 
 </div>
 
 ### define time bins
 
-trip_purpose generated from NHTS field ‘STRTTIME’
+trip_purpose_ATB generated from NHTS field ‘STRTTIME’
 ![](pngs/STRTTIME_dictionary.png)
 
 ``` r
@@ -305,38 +314,44 @@ df_trippub <- df_trippub  %>%
 
 ``` r
 df_trippub <- df_trippub  %>%
-  mutate(start_time_bin = 
+  mutate(start_time_bin_ATB = 
       case_when(STRTTIME_num <=  600 ~ 'morning_rush',
                 STRTTIME_num >= 1600 ~ 'evening_rush',
                 is.na(STRTTIME_num)  ~ 'missing time',
                 TRUE ~ "other_time")
       )
 summary <- df_trippub |>
-    group_by(start_time_bin) |>
+    group_by(start_time_bin_ATB) |>
   summarise(countN = n() ,
             "Min start time" = min(STRTTIME_num),
             "Max start time" = max(STRTTIME_num),
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
-  arrange(start_time_bin)   
+  arrange(start_time_bin_ATB)   
 summary
 ```
 
 <div class="kable-table">
 
-| start_time_bin | countN | Min start time | Max start time | Nmissing |
-|:---------------|-------:|---------------:|---------------:|---------:|
-| evening_rush   | 298139 |           1600 |           2359 |        0 |
-| morning_rush   |  20909 |              0 |            600 |        0 |
-| other_time     | 604524 |            601 |           1559 |        0 |
+| start_time_bin_ATB | countN | Min start time | Max start time | Nmissing |
+|:-------------------|-------:|---------------:|---------------:|---------:|
+| evening_rush       | 298139 |           1600 |           2359 |        0 |
+| morning_rush       |  20909 |              0 |            600 |        0 |
+| other_time         | 604524 |            601 |           1559 |        0 |
 
 </div>
 
-## Dataset - tripsct: County-Tract Crosswalk
+## Dataset - tripsct: County-Tract Crosswalk for trips
+
+tripsct: each row is a household-person-trip, with only geo IDs for
+*each* trip, like, trip origin geoID and trip destination geoID.
+
+- The geo IDs are: 2 digit state code, county code, and 6 digit tract
+  code.
 
 Read in tripsct because it has the county fips codes and census tract to
-crosswalk it is possibly the raw trip with od – only has tract trip path
-with distance
+crosswalk. it is possibly the raw trip with od – only has tract trip
+path with distance
 
 ``` r
 df_tripct <- read_csv(file=file.path(data_path, 'tripct.csv'))
@@ -349,25 +364,33 @@ names(df_tripct)
 
 ### create key and ID vars
 
+variable to show where the data is from
+
 ``` r
 df_tripct <- df_tripct  %>%
-  mutate(rawdatafrom_tripct = 1)
+  mutate(rawdatafrom_tripct_ATB = 1)
+```
+
+Concatenate geo IDs so that there is an 11 diget fips variable, the
+state ST, county CNTY, and census tract CT
+
+``` r
+df_tripct <- df_tripct  %>% 
+  unite(orig_fips11_ATB, c("ORIG_ST","ORIG_CNTY","ORIG_CT"),sep="_",remove = FALSE)
+df_tripct <- df_tripct  %>% 
+  unite(dest_fips11_ATB, c("DEST_ST","DEST_CNTY","DEST_CT"),sep="_",remove = FALSE)
 ```
 
 ## Dataset - hhct.csv: Household GEOIDs
 
-hhct is restricted data. maps households to trips. hhpub has public info
-for household information demographics location of household info from
-survey
+hhct is restricted data. maps households to where the households are
+located.
+
+- hhct.csv: each row is a household, with a geo ID for the household.
+- geo IDs are
 
 ``` r
 df_hhct <- read_csv(file=file.path(data_path, 'hhct.csv'))
-names(df_hhct)
-```
-
-    ## [1] "HOUSEID"  "HHSTFIPS" "HHCNTYFP" "HHCT"
-
-``` r
 names(df_hhct)
 ```
 
@@ -377,13 +400,153 @@ names(df_hhct)
 
 ``` r
 df_hhct <- df_hhct  %>%
-  mutate(rawdatafrom_hhct = 1)
+  mutate(rawdatafrom_hhct_ATB = 1)
+```
+
+Concatenate geo IDs so that there is an 11 diget fips variable, the
+state ST, county CNTY, and census tract CT, for the household
+
+``` r
+df_hhct <- df_hhct  %>% 
+  unite(hh_fips11_ATB, c("HHSTFIPS","HHCNTYFP","HHCT"),sep="_",remove = FALSE)
+```
+
+## Dataset - geo ID
+
+with imputation, from Xiaodan: Please find the geospatial cluster and
+crosswalk file all in one place from Phase 1 of the GEMS project. It is
+based on the census 2010 boundary, which is aligned with NHTS geospatial
+resolutions. The imputation indicators mean the micro-geotype IDs are
+not generated in the original clustering analysis due to data
+quality/missing issues but are added through post-processing. We can use
+those imputation values, and totally fine to use those as non-imputed
+values. Anna: Yeah, the “with imputation” means all the tracts are
+assigned a type. This is what you should be using for now Annika.
+
+- fips_st : 2 digit state code, cty fips county code, and presumably
+  tract code?
+
+<table style="width:92%;">
+<colgroup>
+<col style="width: 22%" />
+<col style="width: 69%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td>FID</td>
+<td>CCTSM ID</td>
+</tr>
+<tr class="even">
+<td>GEOID</td>
+<td>Census tract ID</td>
+</tr>
+<tr class="odd">
+<td>MicrotypeID</td>
+<td>Micro-geotype ID by census tract</td>
+</tr>
+<tr class="even">
+<td>microtype</td>
+<td>Microtype ID by census tract</td>
+</tr>
+<tr class="odd">
+<td>microtype_imp</td>
+<td>If microtype ID is imputed using KNN method</td>
+</tr>
+<tr class="even">
+<td>fips_st</td>
+<td>State FIPs code</td>
+</tr>
+<tr class="odd">
+<td>st_code</td>
+<td>State abbreviation</td>
+</tr>
+<tr class="even">
+<td>state</td>
+<td>State full name</td>
+</tr>
+<tr class="odd">
+<td>cty</td>
+<td>County FIPS code</td>
+</tr>
+<tr class="even">
+<td>ctyname</td>
+<td>County name</td>
+</tr>
+<tr class="odd">
+<td>cbsa</td>
+<td>Census Core-Based Statistical Areas (CBSA) code</td>
+</tr>
+<tr class="even">
+<td>cbsaname</td>
+<td>Census Core-Based Statistical Areas (CBSA) name</td>
+</tr>
+<tr class="odd">
+<td>spatial_id</td>
+<td>Spatial ID for geotype label,<br />
+spatial_id = CBSA code if CBSA != 99999,<br />
+spatial_id = county FIPS code if CBSA == 99999</td>
+</tr>
+<tr class="even">
+<td>geotype</td>
+<td>Geotype ID by census tract</td>
+</tr>
+<tr class="odd">
+<td>geotype_imp</td>
+<td>If Geotype ID is imputed using KNN method</td>
+</tr>
+</tbody>
+</table>
+
+``` r
+df_geoID <- read_csv(file=file.path(data_results, 'raw/ccst_geoid_key_transp_geo_with_imputation.csv'),trim_ws = FALSE, guess_max = Inf)
+names(df_geoID)
+```
+
+    ##  [1] "FID"           "GEOID"         "MicrotypeID"   "microtype"    
+    ##  [5] "microtype_imp" "fips_st"       "st_code"       "state"        
+    ##  [9] "cty"           "ctyname"       "cbsa"          "cbsaname"     
+    ## [13] "spatial_id"    "geotype"       "geotype_imp"
+
+### create key and ID vars
+
+``` r
+df_geoID <- df_geoID  %>%
+  mutate(rawdatafrom_geoID = 1)
+```
+
+Create fips state that’s a string not a number and is separated into
+different vars
+
+``` r
+df_geoID <- df_geoID  %>%
+  separate_wider_position(GEOID,c(fipsstate=2,fipscounty=3,censustract=6),cols_remove = FALSE)
+```
+
+and make the fips11_ATB
+
+``` r
+df_geoID <- df_geoID  %>% 
+  unite(fips11_ATB, c("fipsstate","fipscounty","censustract"),sep="_",remove = FALSE)
 ```
 
 # DATA - Merge
 
 Examine the unique primary keys to make sure they’re unique. These
-should be 0, meaning that these uniquely identify the observations:
+should have 0 observations, meaning that these uniquely identify the
+observations:
+
+``` r
+df_trippub |>  
+  summarise(n = n())
+```
+
+<div class="kable-table">
+
+|      n |
+|-------:|
+| 923572 |
+
+</div>
 
 ``` r
 df_trippub |>  
@@ -396,6 +559,19 @@ df_trippub |>
 
 | HOUSEID | PERSONID | TDTRPNUM |   n |
 |--------:|:---------|:---------|----:|
+
+</div>
+
+``` r
+df_tripct |>  
+  summarise(n = n()) 
+```
+
+<div class="kable-table">
+
+|      n |
+|-------:|
+| 923572 |
 
 </div>
 
@@ -415,6 +591,19 @@ df_tripct |>
 
 ``` r
 df_hhct |>  
+  summarise(n = n()) 
+```
+
+<div class="kable-table">
+
+|      n |
+|-------:|
+| 129696 |
+
+</div>
+
+``` r
+df_hhct |>  
   group_by(HOUSEID) |>  
   summarise(n = n()) |>  
   filter(n > 1)
@@ -427,10 +616,61 @@ df_hhct |>
 
 </div>
 
+Looks like GeoID has two GEO IDs that are not unique? Remove one.
+
+``` r
+# count the number of geo IDs
+df_geoID |>
+  summarise(n = n())
+```
+
+<div class="kable-table">
+
+|     n |
+|------:|
+| 72833 |
+
+</div>
+
+``` r
+# count duplicates of geo IDs
+df_geoID |>
+  group_by(GEOID) |>
+  summarise(n = n()) |>  
+  filter(n > 1)
+```
+
+<div class="kable-table">
+
+| GEOID       |   n |
+|:------------|----:|
+| 36103159406 |   2 |
+
+</div>
+
+``` r
+df_geoID |>
+  filter(GEOID=="36103159406")
+```
+
+<div class="kable-table">
+
+|  FID | fips11_ATB    | fipsstate | fipscounty | censustract | GEOID       | MicrotypeID | microtype | microtype_imp | fips_st | st_code | state    |   cty | ctyname            |  cbsa | cbsaname                              | spatial_id | geotype | geotype_imp | rawdatafrom_geoID |
+|-----:|:--------------|:----------|:-----------|:------------|:------------|:------------|----------:|:--------------|--------:|:--------|:---------|------:|:-------------------|------:|:--------------------------------------|-----------:|:--------|:------------|------------------:|
+| 2306 | 36_103_159406 | 36        | 103        | 159406      | 36103159406 | A_3         |         3 | FALSE         |      36 | NY      | New York | 36103 | Suffolk County, NY | 35620 | New York-Newark-Jersey City, NY-NJ-PA |      35620 | A       | FALSE       |                 1 |
+| 3030 | 36_103_159406 | 36        | 103        | 159406      | 36103159406 | A_3         |         3 | FALSE         |      36 | NY      | New York | 36103 | Suffolk County, NY | 35620 | New York-Newark-Jersey City, NY-NJ-PA |      35620 | A       | FALSE       |                 1 |
+
+</div>
+
+``` r
+df_geoID <- df_geoID %>% 
+  filter((GEOID!="36103159406" | FID!=3030))
+```
+
 This will tell us the relationship between the files. It looks like hhct
 has more observations of households than trippub has households:
 
 ``` r
-#can't keep this in memory?
+#can't keep this in memory? So stopping the knitted part here
 knitr::knit_exit()
 ```

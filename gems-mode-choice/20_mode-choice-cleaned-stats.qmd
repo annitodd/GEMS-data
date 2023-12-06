@@ -308,6 +308,10 @@ df_trips_only_small_wide  %>%
     values_fn = sum
   )
 df_trips_only_small_wide
+
+# df_trips_only_small %>% 
+#   count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+#   pivot_wider(names_from = dest_geoXmicrotype_ATB,values_from = n)
 ```
 
 ### make county level dataset
@@ -322,21 +326,28 @@ df_trips_only_small_wide
 ```
 ### make microXgeotype level dataset
 ```{r}
-# df__origin <- df_trips_only_small |>
-#   group_by(ORIG_ST,ORIG_CNTY) |>
-#   summarise(Ntrips = n(),
-#             across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
-#     .groups = "drop")
-# df_county_origin
+df_microXgeotype <- df_trips_only_small |>
+  group_by(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) |>
+  summarise(Ntrips = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+    .groups = "drop")
+df_microXgeotype
 ```
-### Wide
+## START HERE DEC 6
+### Wide microgeo
 ```{r}
-# df_county_origin_wide <- df_trips_only_small_wide |>
-#   group_by(ORIG_ST,ORIG_CNTY) |>
-#   summarise(Ntrips = n(),
-#             across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
-#     .groups = "drop")
-# df_county_origin_wide
+df_microXgeotype_wide <- df_trips_only_small |>
+    count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB,mode_ATB) %>% 
+   pivot_wider(
+    names_from = mode_ATB,
+    values_from = n
+  )
+df_microXgeotype_wide
+
+# df_trips_only_small %>% 
+#   count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+#   pivot_wider(names_from = dest_geoXmicrotype_ATB,values_from = n)
+
 ```
 
 ### new dataset
