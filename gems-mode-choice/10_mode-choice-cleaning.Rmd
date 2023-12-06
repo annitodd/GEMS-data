@@ -17,7 +17,7 @@ Data Dictionary: I'm taking the results from this code, and also putting it into
 
 GitHub: This .Rmd code (possibly qmd if I have to change it with the new update to R Studio) is synced to Github, and when this code is knit, it's also synced to GitHub, as a .md file, which makes the knitted code easy to read (kind of like python code.) Currently in a FORK: <https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice/10_mode-choice-cleaning.md>
 
-## datasets description
+## Datasets Description
 
 -   trippub: each row is household-person-trip, without geo IDs, with lots of descriptions of the trips. It's public dataset.
 
@@ -32,6 +32,12 @@ Data file structure screen shot:
 ![](pngs/NHTS_Summary_of_content.png){width="100"}
 
 ![](pngs/NHST_data_file_structure.png){width="180",height="344"}
+
+## FIPS and geotype Descriptions
+-   Fips codes -- state 2 characters, county 3 characters, census tract 6 characters
+-   fips11_ATB is an a amalgamation -- make these three things into one id, using best practices, here: <https://www.census.gov/programs-surveys/geography/guidance/geo-identifiers.html>, 
+-   fips11_ATB is created by concatenating them, not by multiplying
+
 
 ## steps in this code
 
@@ -96,11 +102,10 @@ names(df_trippub)
 
 ```{r}
 df_trippub <- df_trippub  %>%
-  mutate(rawdatafrom_trippub = 1)
-
+  mutate(rawdatafrom_trippub_ATB = 1)
 ```
 
-### define modes
+### create defined modes
 
 Uses TRPTRANS from NHTS
 
@@ -110,7 +115,7 @@ First I'm going to create smaller bins of modes because there are too many, ther
 
 ```{r}
 df_trippub <- df_trippub  %>%
-  mutate(mode = 
+  mutate(mode_ATB = 
       case_when(TRPTRANS %in% c("01") ~ 'walk',
                 TRPTRANS %in% c("02") ~ 'bike',
                 TRPTRANS %in% c(10,11,12,13,14) ~ 'bus', 
@@ -120,9 +125,9 @@ df_trippub <- df_trippub  %>%
                 TRUE ~ "other")
       )
 summary <- df_trippub |>
-    group_by(TRPTRANS, mode) |>
+    group_by(TRPTRANS, mode_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
   arrange(TRPTRANS)   
 summary
@@ -130,9 +135,9 @@ summary
 
 ```{r}
 summary <- df_trippub |>
-    group_by(mode) |>
+    group_by(mode_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
   arrange(-countN)   
 summary
@@ -140,11 +145,11 @@ summary
 
 ### define trip purpose
 
-trip_purpose generated from NHTS field 'whytrp1s' ![](pngs/WHYTRP1S_dictionary.png)
+trip_purpose_ATB generated from NHTS field 'whytrp1s' ![](pngs/WHYTRP1S_dictionary.png)
 
 ```{r}
 df_trippub <- df_trippub  %>%
-  mutate(trip_purpose = 
+  mutate(trip_purpose_ATB = 
       case_when(WHYTRP1S %in% c("01") ~ 'home',
                 WHYTRP1S %in% c("10") ~ 'work',
                 WHYTRP1S %in% c("20") ~ 'school',
@@ -156,9 +161,9 @@ df_trippub <- df_trippub  %>%
                 TRUE ~ "other")
       )
 summary <- df_trippub |>
-    group_by(WHYTRP1S, trip_purpose) |>
+    group_by(WHYTRP1S, trip_purpose_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
   arrange(WHYTRP1S)   
 summary
@@ -166,7 +171,7 @@ summary
 
 ### define time bins
 
-trip_purpose generated from NHTS field 'STRTTIME' ![](pngs/STRTTIME_dictionary.png)
+trip_purpose_ATB generated from NHTS field 'STRTTIME' ![](pngs/STRTTIME_dictionary.png)
 
 ```{r}
 # convert to numeric
@@ -176,26 +181,30 @@ df_trippub <- df_trippub  %>%
 
 ```{r}
 df_trippub <- df_trippub  %>%
-  mutate(start_time_bin = 
+  mutate(start_time_bin_ATB = 
       case_when(STRTTIME_num <=  600 ~ 'morning_rush',
                 STRTTIME_num >= 1600 ~ 'evening_rush',
                 is.na(STRTTIME_num)  ~ 'missing time',
                 TRUE ~ "other_time")
       )
 summary <- df_trippub |>
-    group_by(start_time_bin) |>
+    group_by(start_time_bin_ATB) |>
   summarise(countN = n() ,
             "Min start time" = min(STRTTIME_num),
             "Max start time" = max(STRTTIME_num),
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
-  arrange(start_time_bin)   
+  arrange(start_time_bin_ATB)   
 summary
 ```
 
-## Dataset - tripsct: County-Tract Crosswalk
+## Dataset - tripsct: County-Tract Crosswalk for trips
 
-Read in tripsct because it has the county fips codes and census tract to crosswalk it is possibly the raw trip with od -- only has tract trip path with distance
+tripsct: each row is a household-person-trip, with only geo IDs for *each* trip, like, trip origin geoID and trip destination geoID.
+
+-   The geo IDs are: 2 digit state code, county code, and 6 digit tract code.
+
+Read in tripsct because it has the county fips codes and census tract to crosswalk. it is possibly the raw trip with od -- only has tract trip path with distance
 
 ```{r}
 df_tripct <- read_csv(file=file.path(data_path, 'tripct.csv'))
@@ -203,19 +212,28 @@ names(df_tripct)
 ```
 
 ### create key and ID vars
-
+variable to show where the data is from
 ```{r}
 df_tripct <- df_tripct  %>%
-  mutate(rawdatafrom_tripct = 1)
+  mutate(rawdatafrom_tripct_ATB = 1)
+```
+Concatenate geo IDs so that there is an 11 diget fips variable, the state ST, county CNTY, and census tract CT
+```{r}
+df_tripct <- df_tripct  %>% 
+  unite(orig_fips11_ATB, c("ORIG_ST","ORIG_CNTY","ORIG_CT"),sep="_",remove = FALSE)
+df_tripct <- df_tripct  %>% 
+  unite(dest_fips11_ATB, c("DEST_ST","DEST_CNTY","DEST_CT"),sep="_",remove = FALSE)
 ```
 
 ## Dataset - hhct.csv: Household GEOIDs
 
-hhct is restricted data. maps households to trips. hhpub has public info for household information demographics location of household info from survey
+hhct is restricted data. maps households to where the households are located.
+
+-   hhct.csv: each row is a household, with a geo ID for the household.
+-   geo IDs are
 
 ```{r}
 df_hhct <- read_csv(file=file.path(data_path, 'hhct.csv'))
-names(df_hhct)
 names(df_hhct)
 ```
 
@@ -223,34 +241,118 @@ names(df_hhct)
 
 ```{r}
 df_hhct <- df_hhct  %>%
-  mutate(rawdatafrom_hhct = 1)
+  mutate(rawdatafrom_hhct_ATB = 1)
 ```
 
-### Geo ID
-with imputation
+Concatenate geo IDs so that there is an 11 diget fips variable, the state ST, county CNTY, and census tract CT, for the household
 ```{r}
-df_geoID <- read_csv(file=file.path(data_results, 'raw/ccst_geoid_key_transp_geo_with_imputation.csv'))
+df_hhct <- df_hhct  %>% 
+  unite(hh_fips11_ATB, c("HHSTFIPS","HHCNTYFP","HHCT"),sep="_",remove = FALSE)
+```
+
+## Dataset - geo ID
+
+with imputation, from Xiaodan: Please find the geospatial cluster and crosswalk file all in one place from Phase 1 of the GEMS project. It is based on the census 2010 boundary, which is aligned with NHTS geospatial resolutions. The imputation indicators mean the micro-geotype IDs are not generated in the original clustering analysis due to data quality/missing issues but are added through post-processing. We can use those imputation values, and totally fine to use those as non-imputed values. Anna: Yeah, the "with imputation" means all the tracts are assigned a type. This is what you should be using for now Annika.
+
+-   fips_st : 2 digit state code, cty fips county code, and presumably tract code?
+
++---------------+-------------------------------------------------+
+| FID           | CCTSM ID                                        |
++---------------+-------------------------------------------------+
+| GEOID         | Census tract ID                                 |
++---------------+-------------------------------------------------+
+| MicrotypeID   | Micro-geotype ID by census tract                |
++---------------+-------------------------------------------------+
+| microtype     | Microtype ID by census tract                    |
++---------------+-------------------------------------------------+
+| microtype_imp | If microtype ID is imputed using KNN method     |
++---------------+-------------------------------------------------+
+| fips_st       | State FIPs code                                 |
++---------------+-------------------------------------------------+
+| st_code       | State abbreviation                              |
++---------------+-------------------------------------------------+
+| state         | State full name                                 |
++---------------+-------------------------------------------------+
+| cty           | County FIPS code                                |
++---------------+-------------------------------------------------+
+| ctyname       | County name                                     |
++---------------+-------------------------------------------------+
+| cbsa          | Census Core-Based Statistical Areas (CBSA) code |
++---------------+-------------------------------------------------+
+| cbsaname      | Census Core-Based Statistical Areas (CBSA) name |
++---------------+-------------------------------------------------+
+| spatial_id    | Spatial ID for geotype label, \                 |
+|               | spatial_id = CBSA code if CBSA != 99999,\       |
+|               | spatial_id = county FIPS code if CBSA == 99999  |
++---------------+-------------------------------------------------+
+| geotype       | Geotype ID by census tract                      |
++---------------+-------------------------------------------------+
+| geotype_imp   | If Geotype ID is imputed using KNN method       |
++---------------+-------------------------------------------------+
+
+```{r}
+df_geoID <- read_csv(file=file.path(data_results, 'raw/ccst_geoid_key_transp_geo_with_imputation.csv'),trim_ws = FALSE, guess_max = Inf)
 names(df_geoID)
+```
+
+### create key and ID vars
+
+```{r}
+df_geoID <- df_geoID  %>%
+  mutate(rawdatafrom_geoID = 1)
+```
+Create fips state that's a string not a number and is separated into different vars
+```{r}
+df_geoID <- df_geoID  %>%
+  separate_wider_position(GEOID,c(fipsstate=2,fipscounty=3,censustract=6),cols_remove = FALSE)
+```
+and make the fips11_ATB
+```{r}
+df_geoID <- df_geoID  %>% 
+  unite(fips11_ATB, c("fipsstate","fipscounty","censustract"),sep="_",remove = FALSE)
 ```
 
 
 # DATA - Merge
 
-Examine the unique primary keys to make sure they're unique. These should be 0, meaning that these uniquely identify the observations:
+Examine the unique primary keys to make sure they're unique. These should have 0 observations, meaning that these uniquely identify the observations:
 
 ```{r}
+df_trippub |>  
+  summarise(n = n())
 df_trippub |>  
   group_by(HOUSEID,PERSONID,TDTRPNUM) |>  
   summarise(n = n()) |>  
   filter(n > 1)
 df_tripct |>  
+  summarise(n = n()) 
+df_tripct |>  
   group_by(HOUSEID,PERSONID,TDTRPNUM) |>  
   summarise(n = n()) |>  
   filter(n > 1)
 df_hhct |>  
+  summarise(n = n()) 
+df_hhct |>  
   group_by(HOUSEID) |>  
   summarise(n = n()) |>  
   filter(n > 1)
+```
+
+Looks like GeoID has two GEO IDs that are not unique? Remove one.
+
+```{r}
+# count the number of geo IDs
+df_geoID |>
+  summarise(n = n())
+# count duplicates of geo IDs
+df_geoID |>
+  group_by(GEOID) |>
+  summarise(n = n()) |>  
+  filter(n > 1)
+df_geoID |>
+  filter(GEOID=="36103159406")
+df_geoID <- df_geoID %>% 
+  filter((GEOID!="36103159406" | FID!=3030))
 ```
 
 This will tell us the relationship between the files. It looks like hhct has more observations of households than trippub has households:
@@ -269,17 +371,18 @@ df_trippub |>
 ```
 
 ## merge trippub to tripct
+This looks like it works perfectly -- as it should:
 
 ```{r}
-df_temp <- full_join(df_trippub,df_tripct,
+df_temp1 <- full_join(df_trippub,df_tripct,
                      by=c("HOUSEID","PERSONID","TDTRPNUM"))
-df_temp
+df_temp1
 ```
 
 ## merge that to hhct with full join
 
 ```{r}
-df_temp2 <- full_join(df_temp,df_hhct,
+df_temp2 <- full_join(df_temp1,df_hhct,
                      by=c("HOUSEID"))
 df_temp2
 ```
@@ -288,35 +391,105 @@ looks like they don't equally merge, as we saw before (hhct has more households 
 
 ```{r}
 df_temp2 |>
-  count(rawdatafrom_trippub,rawdatafrom_tripct,rawdatafrom_hhct)
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
 ```
 
-# DATA - Save
-
-Save the complete merged file as a parquet file and a csv file
+## merge in geotypes
+match fips codes with the microtypes and geotypes
+### for origin
+```{r}
+df_geoID_origin <- df_geoID %>% 
+  select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
+  rename(origin_geotype_ATB = geotype,
+         origin_microtype_ATB = microtype,
+         origin_geoXmicrotype_ATB = MicrotypeID) 
+```
 
 ```{r}
-write_parquet(df_temp2,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
-write_rds(df_temp2,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.rds"))
+df_temp3 <- left_join(df_temp2,df_geoID_origin,
+                      by = join_by("orig_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
+```
 
-write_csv(df_temp2,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.csv"))
+### for destination
+```{r}
+df_geoID_dest <- df_geoID %>% 
+  select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
+  rename(dest_geotype_ATB = geotype,
+         dest_microtype_ATB = microtype,
+         dest_geoXmicrotype_ATB = MicrotypeID) 
+```
+
+```{r}
+df_temp4 <- left_join(df_temp3,df_geoID_dest,
+                      by = join_by("dest_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
+```
+
+### for household location
+```{r}
+df_geoID_hh <- df_geoID %>% 
+  select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
+  rename(hh_geotype_ATB = geotype,
+         hh_microtype_ATB = microtype,
+         hh_geoXmicrotype_ATB = MicrotypeID) 
+```
+
+```{r}
+df_temp5 <- left_join(df_temp4,df_geoID_hh,
+                      by = join_by("hh_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
+```
+
+
+
+# DATA - Save
+## reorder
+```{r}
+ df_temp10 <- df_temp5 %>% 
+  relocate(contains("_ATB"))
+```
+remove temporary dataframes
+```{r}
+rm(df_temp1)
+rm(df_temp2)
+rm(df_temp3)
+rm(df_temp4)
+rm(df_temp5)
+rm(df_temp6)
+rm(df_temp7)
+rm(df_temp8)
+rm(df_temp9)
+```
+
+
+## save
+
+Save the complete merged file as a parquet file and a csv file, and also a R specific rds file
+
+```{r}
+write_parquet(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
+write_rds(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.rds"))
+write_csv(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.csv"))
 ```
 
 Save only the variables we might want into a smaller file
-
+(Currently nothing here)
 ```{r}
 
 ```
 
-## ------------------------------
-
-# END-------------------------------
-
+# Clean up and conclude
+## Remove temp10
+```{r}
+rm(df_temp10)
+```
+## Exit knittr
 ```{r exit}
 knitr::knit_exit()
 ```
 
-#------------ Notes \*\*\*
+# The End------------------------------------------------------------------
+#-------------------------------------------------------------------------- 
+
+## Notes 
 
 location \<- location %\>% dplyr::mutate(hometract = HHSTFIPS \* 10\^9 + HHCNTYFP\*10\^6 + HHCT) %\>% dplyr::select(HOUSEID, hometract) \# Next Steps
 
@@ -474,11 +647,11 @@ summary
 
 ```{r}
 summary <- df_mode |> 
-  group_by(mode) |>
+  group_by(mode_ATB) |>
   summarise(count = n())
 summary
 summary <- df_mode |> 
-  group_by(mode) |>
+  group_by(mode_ATB) |>
   summarise(
     countN = n(),
     across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
@@ -486,12 +659,12 @@ summary <- df_mode |>
 summary
 
 summary <- df_mode |> 
-  group_by(trip_purpose) |>
+  group_by(trip_purpose_ATB) |>
   summarise(count = n())
 summary
 
 summary_modeXpurpose <- df_mode |> 
-  group_by(mode, trip_purpose) |>
+  group_by(mode_ATB, trip_purpose_ATB) |>
   summarise(count = n())
 summary
 

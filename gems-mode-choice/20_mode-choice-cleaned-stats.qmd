@@ -26,6 +26,10 @@ library(readxl)
 library(rstudioapi)
 library(scales)
 library(writexl)
+library(sjmisc)
+library(fmlogit)
+library(tidyverse) # use this last
+
 ```
 
 ### file path directories
@@ -44,7 +48,7 @@ data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
 ```
 
-## Data sets
+## Data: open and slim down
 
 ### read in big dataset
 
@@ -59,7 +63,7 @@ Recall that they don't equally merge, as we saw before (hhct has more households
 
 ```{r}
 df_temp |>
-  count(rawdatafrom_trippub,rawdatafrom_tripct,rawdatafrom_hhct)
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
 df_temp <- ungroup(df_temp)
 ```
 
@@ -80,7 +84,7 @@ number of **people** in the dataset **with trips** (there are FEWER people with 
 
 ```{r}
 df_temp |> 
-  filter(rawdatafrom_trippub==1,rawdatafrom_tripct==1,rawdatafrom_hhct==1) |> summarise(n_distinct(HOUSEID,PERSONID))
+  filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1) |> summarise(n_distinct(HOUSEID,PERSONID))
 ```
 
 The number of **households** in the dataset:
@@ -93,42 +97,210 @@ The number of **households** in the dataset **with trips**:
 
 ```{r}
 df_temp |> 
-  filter(rawdatafrom_trippub==1,rawdatafrom_tripct==1,rawdatafrom_hhct==1) |> summarise(n_distinct(HOUSEID))
+  filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1) |> summarise(n_distinct(HOUSEID))
 ```
 
 ```{r}
 #| output: asis
 
 df_trips_only <- df_temp |> 
-  filter(rawdatafrom_trippub==1,rawdatafrom_tripct==1,rawdatafrom_hhct==1)
+  filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1)
 
 df_trips_only |> 
-  count(rawdatafrom_trippub,rawdatafrom_tripct,rawdatafrom_hhct)
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
 df_trips_only <- ungroup(df_trips_only)
 ```
+
+### list of variables and descriptions
+```{r}
+names(df_trips_only)
+```
+
+This is the data dictionary from NHTS:
+```{r}
+dictionary_v1_2 <- read_csv("dictionary_v1_2.csv") %>% 
+  relocate ("Label","Name")
+dictionary_v1_2 
+```
+
 
 ### make smaller dataset
 
 choose only some vars:
+keep all of the ones that we made.  These all end in "_ATB"
+```{r}
+names(df_trips_only)
+df_trips_only_small <- df_trips_only |> 
+  select(contains("_ATB")) %>% 
+  select(-contains("rawdatafrom"))
+```
+```{r}
+names(df_trips_only_small)
+```
+### Examine: 
+
+#### the key vars
 
 ```{r}
-
-df_trips_only_small <- df_trips_only |> 
-  select(mode, trip_purpose, ORIG_COUNTRY,ORIG_ST,ORIG_CNTY)
+names(df_trips_only_small)
+```
+#### Number of distinct in each group
+```{r}
+summary <- df_trips_only_small |>
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
+    .groups = "drop")
+summary
+summary %>% sjmisc::rotate_df(rn="N distinct")
+```
+##### the distinct values
+```{r}
 df_trips_only_small %>% 
-  distinct(mode,trip_purpose) 
+  distinct(origin_geoXmicrotype_ATB) 
 ```
 
-then use the smaller to make wider dataset:
+```{r}
+df_trips_only_small %>% 
+  distinct(dest_geoXmicrotype_ATB) 
+```
 
 ```{r}
+df_trips_only_small %>% 
+  distinct(hh_geoXmicrotype_ATB) 
+```
+
+
+
+```{r}
+df_trips_only_small %>% 
+  distinct(start_time_bin_ATB) 
+```
+```{r}
+df_trips_only_small %>% 
+  distinct(trip_purpose_ATB) 
+```
+#### how many combinatorials
+distinct mode X trip purpose
+```{r}
+summary <- df_trips_only_small |>
+  group_by(mode_ATB,trip_purpose_ATB) %>% 
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
+    .groups = "drop")
+summary
+summary %>% sjmisc::rotate_df(rn="N distinct")
+```
+##### distinct origin destination
+
+```{r}
+df_trips_only_small %>% 
+  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  pivot_wider(names_from = dest_geoXmicrotype_ATB,values_from = n)
+```
+
+```{r}
+
+ggplot() +
+  geom_count(data=df_trips_only_small,
+             mapping=aes(x = origin_geoXmicrotype_ATB, y = dest_geoXmicrotype_ATB)) +
+  scale_size_area(max_size = 10)
+
+```
+```{r}
+df_trips_only_small %>% 
+  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) 
+df_trips_only_small %>% 
+  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  filter(n<100) %>% 
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 5)
+```
+```{r}
+temp_count <- df_trips_only_small %>% 
+  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB)
+
+ggplot() +
+  geom_tile(data=temp_count,
+            mapping=aes(x = origin_geoXmicrotype_ATB, 
+                        y = dest_geoXmicrotype_ATB,
+                        fill = log(n)))
+```
+
+
+```{r}
+ggplot() +
+  geom_tile(data=temp_count,
+            mapping=aes(x = origin_geoXmicrotype_ATB, 
+                        y = dest_geoXmicrotype_ATB,
+                        fill = log(n))) +
+  geom_point(data=temp_count %>% filter(n<8),
+            mapping=aes(x = origin_geoXmicrotype_ATB, 
+                        y = dest_geoXmicrotype_ATB,
+                        size = -n),
+            color = "red",
+            alpha = .5) 
+  
+```
+
+
+
+
+```{r}
+ggplot(df_trips_only_small, 
+       aes(x = origin_geoXmicrotype_ATB, 
+           y = dest_geoXmicrotype_ATB,
+           color = start_time_bin_ATB,
+           shape = trip_purpose_ATB)) +
+  geom_count()
+```
+
+```{r}
+summary <- df_trips_only_small |>
+  group_by(origin_geoXmicrotype_ATB) %>% 
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
+    .groups = "drop")
+36*36
+summary
+summary %>% sjmisc::rotate_df(rn="N distinct")
+```
+
+```{r}
+summary <- df_trips_only_small |>
+  group_by(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
+    .groups = "drop")
+36*36
+summary
+summary %>% sjmisc::rotate_df(rn="N distinct")
+```
+
+
+## Data: make wider dataset
+make wider dataset to examine further:
+
+then use the smaller to make wider dataset. This is to make the modes go across rather than down
+```{r}
 df_trips_only_small <- df_trips_only_small |>
-  select(mode, ORIG_COUNTRY,ORIG_ST,ORIG_CNTY) |>
   mutate(onePerObs = 1)
+```
+
+```{r}
 df_trips_only_small_wide <- df_trips_only_small  |>
+  group_by(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col}"),
+    .groups = "drop")
+df_trips_only_small_wide
+```
+
+
+```{r}
+df_trips_only_small_wide  %>% 
   pivot_wider(
-    names_from = mode,
-    values_from = onePerObs,
+    names_from = mode_ATB,
+    values_from = "Number Obs",
     values_fn = sum
   )
 df_trips_only_small_wide
@@ -137,21 +309,30 @@ df_trips_only_small_wide
 ### make county level dataset
 
 ```{r}
-df_county_origin <- df_trips_only_small |>
-  group_by(ORIG_ST,ORIG_CNTY) |>
-  summarise(Ntrips = n(),
-            across(contains("mode"),~n_distinct(.x),.names = "{.col}_Ndis"),
-    .groups = "drop")
-df_county_origin
+# df_county_origin <- df_trips_only_small |>
+#   group_by(ORIG_ST,ORIG_CNTY) |>
+#   summarise(Ntrips = n(),
+#             across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+#     .groups = "drop")
+# df_county_origin
 ```
-
+### make microXgeotype level dataset
 ```{r}
-df_county_origin_wide <- df_trips_only_small_wide |>
-  group_by(ORIG_ST,ORIG_CNTY) |>
-  summarise(Ntrips = n(),
-            across(contains("mode"),~n_distinct(.x),.names = "{.col}_Ndis"),
-    .groups = "drop")
-df_county_origin_wide
+# df__origin <- df_trips_only_small |>
+#   group_by(ORIG_ST,ORIG_CNTY) |>
+#   summarise(Ntrips = n(),
+#             across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+#     .groups = "drop")
+# df_county_origin
+```
+### Wide
+```{r}
+# df_county_origin_wide <- df_trips_only_small_wide |>
+#   group_by(ORIG_ST,ORIG_CNTY) |>
+#   summarise(Ntrips = n(),
+#             across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+#     .groups = "drop")
+# df_county_origin_wide
 ```
 
 ### new dataset
@@ -187,7 +368,7 @@ how many trips for each mode
 
 ```{r}
 summary_table <- df_trips_only |> 
-  group_by(mode) |>
+  group_by(mode_ATB) |>
   summarise(   
     Ntrips = n(),
     .groups = "drop") |>
@@ -200,43 +381,52 @@ summary_table
 how many trips in each county
 
 ```{r}
-ggplot(df_county_origin,aes(x=Ntrips)) +
-  geom_histogram(binwidth=1) +
-  coord_cartesian(xlim = c(0, 50))
+# ggplot(df_county_origin,aes(x=Ntrips)) +
+#   geom_histogram(binwidth=1) +
+#   coord_cartesian(xlim = c(0, 50))
 ```
 
 ### by mode type by
 
 ```{r}
-ggplot(df_county_origin,aes(x=mode_Ndis)) +
-  geom_histogram(binwidth=1) 
-#  coord_cartesian(xlim = c(0, 50))
+# ggplot(df_county_origin,aes(x=mode_Ndis)) +
+#   geom_histogram(binwidth=1) 
+# #  coord_cartesian(xlim = c(0, 50))
 ```
 
 ### by purpose
 
 ```{r}
-df_county_origin <- df_trips_only_small |>
-  group_by(mode,trip_purpose) |>
-  summarise(Ntrips = n(),
-            #across(contains("mode"),~n_distinct(.x),.names = "{.col}_Ndis"),
-    .groups = "drop")
-#df_county_origin
-df_county_origin
+# df_county_origin <- df_trips_only_small |>
+#   group_by(mode_ATB,trip_purpose_ATB) |>
+#   summarise(Ntrips = n(),
+#             #across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+#     .groups = "drop")
+# #df_county_origin
+# df_county_origin
 ```
 
 ```         
       across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
         across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
 ```
+## Make new proportional dataset
+### by microXgeotype
 
+```{r}
+# ggplot(df_county_origin,aes(x=Ntrips)) +
+#   geom_histogram(binwidth=1) +
+#   coord_cartesian(xlim = c(0, 50))
+```
 ## fractional split logit
 
 ### methodology
 
+The R package is here, I think it's mostly based on the stata package: https://github.com/f1kidd/fmlogit
+
 It looks like there is no need to include information about how the proportions within each observation were obtained, like how many people or whatever were used to make the proportions, see this from the seminal paper:
 
-Papke, Leslie E., and Jeffrey M. Wooldridge. \"Econometric Methods for Fractional Response Variables With an Application to 401 (K) Plan Participation Rates.\" *Journal of Applied Econometrics*, vol. 11, no. 6, 1996, pp. 619--32. *JSTOR*, http://www.jstor.org/stable/2285155. Accessed 29 Nov. 2023.
+Papke, Leslie E., and Jeffrey M. Wooldridge. "Econometric Methods for Fractional Response Variables With an Application to 401 (K) Plan Participation Rates." *Journal of Applied Econometrics*, vol. 11, no. 6, 1996, pp. 619--32. *JSTOR*, http://www.jstor.org/stable/2285155. Accessed 29 Nov. 2023.
 
 ![](images/fractional_split_woolridge_2.png){width="465"}
 
