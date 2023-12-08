@@ -1,12 +1,11 @@
 ---
 title: "Summary Stats"
-format:
-  html:
-    code-fold: true
-    df-print: paged
+format: docx
 execute:
   warning: false
 ---
+
+html: code-fold: true df-print: paged
 
 ## Description and Overview
 
@@ -213,7 +212,7 @@ df_trips_only_small %>%
   pivot_wider(names_from = dest_geoXmicrotype_ATB,values_from = n)
 ```
 
-## 12/7 do only micro types not geo types
+###### 12/7 do only micro types not geo types
 
 ```{r}
 
@@ -223,8 +222,6 @@ ggplot() +
   scale_size_area(max_size = 10)
 
 ```
-
-## 12/7 do only micro types not geo types
 
 ```{r}
 
@@ -272,6 +269,7 @@ ggplot() +
 ```
 
 ```{r}
+#| warning: false
 ggplot(df_trips_only_small, 
        aes(x = origin_geoXmicrotype_ATB, 
            y = dest_geoXmicrotype_ATB,
@@ -475,13 +473,3 @@ Papke, Leslie E., and Jeffrey M. Wooldridge. "Econometric Methods for Fractional
 ![](images/fractional_split_woolridge_2.png){width="465"}
 
 This is an [example](https://www.sciencedirect.com/science/article/abs/pii/S0001457517304049) of a fractional split logit using the fraction of crashes in each TAZ as the y var, and the x vars are descriptors of the TAZ also in proportions. Lee J, Yasmin S, Eluru N, Abdel-Aty M, Cai Q. Analysis of crash proportion by vehicle type at traffic analysis zone level: A mixed fractional split multinomial logit modeling approach with spatial effects. Accid Anal Prev. 2018 Feb;111:12-22. doi: 10.1016/j.aap.2017.11.017. Epub 2017 Nov 20. PMID: 29161538.
-
-```{r}
-
-```
-
-## Render to Word
-
-```{bash}
-quarto render 20_mode-choice-cleaned-stats.qmd --to docx
-```
