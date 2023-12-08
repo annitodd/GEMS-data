@@ -1,6 +1,6 @@
 ---
 title: "Summary Stats"
-format: docx
+format: gfm
 execute:
   warning: false
 ---
