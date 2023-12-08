@@ -1,9 +1,11 @@
 ---
 title: "Summary Stats"
-format: gfm
-df_print: kable
-toc: TRUE
-toc_depth: 1
+format:
+  html:
+    code-fold: true
+    df-print: paged
+execute:
+  warning: false
 ---
 
 ## Description and Overview
@@ -16,8 +18,7 @@ GitHub: This .Rmd code (possibly qmd if I have to change it with the new update 
 
 ####DEC 6: the next step is to go back to the 10\_ code, and add income
 
-another to-do is
-ALSO use the raw raw data in the folder that I found
+another to-do is ALSO use the raw raw data in the folder that I found
 
 ## Setup
 
@@ -116,39 +117,44 @@ df_trips_only <- ungroup(df_trips_only)
 ```
 
 ### list of variables and descriptions
+
 ```{r}
 names(df_trips_only)
 ```
 
 This is the data dictionary from NHTS:
+
 ```{r}
 dictionary_v1_2 <- read_csv("dictionary_v1_2.csv") %>% 
   relocate ("Label","Name")
 dictionary_v1_2 
 ```
 
-
 ### make smaller dataset
 
-choose only some vars:
-keep all of the ones that we made.  These all end in "_ATB"
+choose only some vars: keep all of the ones that we made. These all end in "\_ATB"
+
 ```{r}
 names(df_trips_only)
 df_trips_only_small <- df_trips_only |> 
   select(contains("_ATB")) %>% 
   select(-contains("rawdatafrom"))
 ```
+
 ```{r}
 names(df_trips_only_small)
 ```
-### Examine: 
+
+### Examine:
 
 #### the key vars
 
 ```{r}
 names(df_trips_only_small)
 ```
+
 #### Number of distinct in each group
+
 ```{r}
 summary <- df_trips_only_small |>
   summarise("Number Obs" = n(),
@@ -157,7 +163,9 @@ summary <- df_trips_only_small |>
 summary
 summary %>% sjmisc::rotate_df(rn="N distinct")
 ```
+
 ##### the distinct values
+
 ```{r}
 df_trips_only_small %>% 
   distinct(origin_geoXmicrotype_ATB) 
@@ -173,18 +181,20 @@ df_trips_only_small %>%
   distinct(hh_geoXmicrotype_ATB) 
 ```
 
-
-
 ```{r}
 df_trips_only_small %>% 
   distinct(start_time_bin_ATB) 
 ```
+
 ```{r}
 df_trips_only_small %>% 
   distinct(trip_purpose_ATB) 
 ```
+
 #### how many combinatorials
+
 distinct mode X trip purpose
+
 ```{r}
 summary <- df_trips_only_small |>
   group_by(mode_ATB,trip_purpose_ATB) %>% 
@@ -194,6 +204,7 @@ summary <- df_trips_only_small |>
 summary
 summary %>% sjmisc::rotate_df(rn="N distinct")
 ```
+
 ##### distinct origin destination
 
 ```{r}
@@ -201,6 +212,19 @@ df_trips_only_small %>%
   count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
   pivot_wider(names_from = dest_geoXmicrotype_ATB,values_from = n)
 ```
+
+## 12/7 do only micro types not geo types
+
+```{r}
+
+ggplot() +
+  geom_count(data=df_trips_only_small,
+             mapping=aes(x = origin_microtypeXgeotype_ATB, y = dest_microtypeXgeotype_ATB)) +
+  scale_size_area(max_size = 10)
+
+```
+
+## 12/7 do only micro types not geo types
 
 ```{r}
 
@@ -210,6 +234,7 @@ ggplot() +
   scale_size_area(max_size = 10)
 
 ```
+
 ```{r}
 df_trips_only_small %>% 
   count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) 
@@ -219,6 +244,7 @@ df_trips_only_small %>%
   ggplot( aes(x = n)) +
   geom_histogram(binwidth = 5)
 ```
+
 ```{r}
 temp_count <- df_trips_only_small %>% 
   count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB)
@@ -229,7 +255,6 @@ ggplot() +
                         y = dest_geoXmicrotype_ATB,
                         fill = log(n)))
 ```
-
 
 ```{r}
 ggplot() +
@@ -245,9 +270,6 @@ ggplot() +
             alpha = .5) 
   
 ```
-
-
-
 
 ```{r}
 ggplot(df_trips_only_small, 
@@ -280,11 +302,12 @@ summary
 summary %>% sjmisc::rotate_df(rn="N distinct")
 ```
 
-
 ## Data: make wider dataset
+
 make wider dataset to examine further:
 
 then use the smaller to make wider dataset. This is to make the modes go across rather than down
+
 ```{r}
 df_trips_only_small <- df_trips_only_small |>
   mutate(onePerObs = 1)
@@ -299,6 +322,7 @@ df_trips_only_small_wide <- df_trips_only_small  |>
 df_trips_only_small_wide
 ```
 
+#### How many have all 7 modes?
 
 ```{r}
 df_trips_only_small_wide  %>% 
@@ -324,7 +348,9 @@ df_trips_only_small_wide
 #     .groups = "drop")
 # df_county_origin
 ```
+
 ### make microXgeotype level dataset
+
 ```{r}
 df_microXgeotype <- df_trips_only_small |>
   group_by(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) |>
@@ -333,21 +359,21 @@ df_microXgeotype <- df_trips_only_small |>
     .groups = "drop")
 df_microXgeotype
 ```
+
 ## START HERE DEC 6
-### Wide microgeo
+
+### Wide microgeo by mode to get fractions (first get the sum)
+
 ```{r}
 df_microXgeotype_wide <- df_trips_only_small |>
-    count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB,mode_ATB) %>% 
+    count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB,
+          trip_purpose_ATB,start_time_bin_ATB,
+          mode_ATB) %>% 
    pivot_wider(
     names_from = mode_ATB,
     values_from = n
   )
 df_microXgeotype_wide
-
-# df_trips_only_small %>% 
-#   count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
-#   pivot_wider(names_from = dest_geoXmicrotype_ATB,values_from = n)
-
 ```
 
 ### new dataset
@@ -425,7 +451,9 @@ how many trips in each county
       across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
         across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
 ```
+
 ## Make new proportional dataset
+
 ### by microXgeotype
 
 ```{r}
@@ -433,6 +461,7 @@ how many trips in each county
 #   geom_histogram(binwidth=1) +
 #   coord_cartesian(xlim = c(0, 50))
 ```
+
 ## fractional split logit
 
 ### methodology
@@ -449,4 +478,10 @@ This is an [example](https://www.sciencedirect.com/science/article/abs/pii/S0001
 
 ```{r}
 
+```
+
+## Render to Word
+
+```{bash}
+quarto render 20_mode-choice-cleaned-stats.qmd --to docx
 ```

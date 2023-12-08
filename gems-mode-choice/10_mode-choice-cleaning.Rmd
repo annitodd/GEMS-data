@@ -34,10 +34,10 @@ Data file structure screen shot:
 ![](pngs/NHST_data_file_structure.png){width="180",height="344"}
 
 ## FIPS and geotype Descriptions
--   Fips codes -- state 2 characters, county 3 characters, census tract 6 characters
--   fips11_ATB is an a amalgamation -- make these three things into one id, using best practices, here: <https://www.census.gov/programs-surveys/geography/guidance/geo-identifiers.html>, 
--   fips11_ATB is created by concatenating them, not by multiplying
 
+-   Fips codes -- state 2 characters, county 3 characters, census tract 6 characters
+-   fips11_ATB is an a amalgamation -- make these three things into one id, using best practices, here: <https://www.census.gov/programs-surveys/geography/guidance/geo-identifiers.html>,
+-   fips11_ATB is created by concatenating them, not by multiplying
 
 ## steps in this code
 
@@ -212,12 +212,16 @@ names(df_tripct)
 ```
 
 ### create key and ID vars
+
 variable to show where the data is from
+
 ```{r}
 df_tripct <- df_tripct  %>%
   mutate(rawdatafrom_tripct_ATB = 1)
 ```
+
 Concatenate geo IDs so that there is an 11 diget fips variable, the state ST, county CNTY, and census tract CT
+
 ```{r}
 df_tripct <- df_tripct  %>% 
   unite(orig_fips11_ATB, c("ORIG_ST","ORIG_CNTY","ORIG_CT"),sep="_",remove = FALSE)
@@ -245,6 +249,7 @@ df_hhct <- df_hhct  %>%
 ```
 
 Concatenate geo IDs so that there is an 11 diget fips variable, the state ST, county CNTY, and census tract CT, for the household
+
 ```{r}
 df_hhct <- df_hhct  %>% 
   unite(hh_fips11_ATB, c("HHSTFIPS","HHCNTYFP","HHCT"),sep="_",remove = FALSE)
@@ -281,7 +286,7 @@ with imputation, from Xiaodan: Please find the geospatial cluster and crosswalk 
 +---------------+-------------------------------------------------+
 | cbsaname      | Census Core-Based Statistical Areas (CBSA) name |
 +---------------+-------------------------------------------------+
-| spatial_id    | Spatial ID for geotype label, \                 |
+| spatial_id    | Spatial ID for geotype label,\                  |
 |               | spatial_id = CBSA code if CBSA != 99999,\       |
 |               | spatial_id = county FIPS code if CBSA == 99999  |
 +---------------+-------------------------------------------------+
@@ -301,17 +306,20 @@ names(df_geoID)
 df_geoID <- df_geoID  %>%
   mutate(rawdatafrom_geoID = 1)
 ```
+
 Create fips state that's a string not a number and is separated into different vars
+
 ```{r}
 df_geoID <- df_geoID  %>%
   separate_wider_position(GEOID,c(fipsstate=2,fipscounty=3,censustract=6),cols_remove = FALSE)
 ```
+
 and make the fips11_ATB
+
 ```{r}
 df_geoID <- df_geoID  %>% 
   unite(fips11_ATB, c("fipsstate","fipscounty","censustract"),sep="_",remove = FALSE)
 ```
-
 
 # DATA - Merge
 
@@ -371,6 +379,7 @@ df_trippub |>
 ```
 
 ## merge trippub to tripct
+
 This looks like it works perfectly -- as it should:
 
 ```{r}
@@ -395,14 +404,23 @@ df_temp2 |>
 ```
 
 ## merge in geotypes
-match fips codes with the microtypes and geotypes
-### for origin
+
+match fips codes with the microtypes and geotypes \### for origin first rename so can merge a little later
+
 ```{r}
 df_geoID_origin <- df_geoID %>% 
   select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
   rename(origin_geotype_ATB = geotype,
          origin_microtype_ATB = microtype,
-         origin_geoXmicrotype_ATB = MicrotypeID) 
+         origin_geoXmicrotype_ATB = MicrotypeID)
+```
+
+create micro X geo, in addition to geo X micro
+
+```{r}
+df_geoID_origin <- df_geoID_origin %>% 
+  unite(origin_microtypeXgeotype_ATB,c("origin_microtype_ATB","origin_geotype_ATB"),sep="_",remove = FALSE)
+
 ```
 
 ```{r}
@@ -411,6 +429,7 @@ df_temp3 <- left_join(df_temp2,df_geoID_origin,
 ```
 
 ### for destination
+
 ```{r}
 df_geoID_dest <- df_geoID %>% 
   select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
@@ -419,12 +438,21 @@ df_geoID_dest <- df_geoID %>%
          dest_geoXmicrotype_ATB = MicrotypeID) 
 ```
 
+create micro X geo, in addition to geo X micro
+
+```{r}
+df_geoID_dest <- df_geoID_dest %>% 
+  unite(dest_microtypeXgeotype_ATB,c("dest_microtype_ATB","dest_geotype_ATB"),sep="_",remove = FALSE)
+
+```
+
 ```{r}
 df_temp4 <- left_join(df_temp3,df_geoID_dest,
                       by = join_by("dest_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
 ```
 
 ### for household location
+
 ```{r}
 df_geoID_hh <- df_geoID %>% 
   select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
@@ -433,20 +461,30 @@ df_geoID_hh <- df_geoID %>%
          hh_geoXmicrotype_ATB = MicrotypeID) 
 ```
 
+create micro X geo, in addition to geo X micro
+
+```{r}
+df_geoID_hh <- df_geoID_hh %>% 
+  unite(hh_microtypeXgeotype_ATB,c("hh_microtype_ATB","hh_geotype_ATB"),sep="_",remove = FALSE)
+
+```
+
 ```{r}
 df_temp5 <- left_join(df_temp4,df_geoID_hh,
                       by = join_by("hh_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
 ```
 
-
-
 # DATA - Save
+
 ## reorder
+
 ```{r}
  df_temp10 <- df_temp5 %>% 
   relocate(contains("_ATB"))
 ```
+
 remove temporary dataframes
+
 ```{r}
 rm(df_temp1)
 rm(df_temp2)
@@ -459,7 +497,6 @@ rm(df_temp8)
 rm(df_temp9)
 ```
 
-
 ## save
 
 Save the complete merged file as a parquet file and a csv file, and also a R specific rds file
@@ -470,26 +507,31 @@ write_rds(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-fu
 write_csv(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.csv"))
 ```
 
-Save only the variables we might want into a smaller file
-(Currently nothing here)
+Save only the variables we might want into a smaller file (Currently nothing here)
+
 ```{r}
 
 ```
 
 # Clean up and conclude
+
 ## Remove temp10
+
 ```{r}
 rm(df_temp10)
 ```
+
 ## Exit knittr
+
 ```{r exit}
 knitr::knit_exit()
 ```
 
 # The End------------------------------------------------------------------
-#-------------------------------------------------------------------------- 
 
-## Notes 
+#--------------------------------------------------------------------------
+
+## Notes
 
 location \<- location %\>% dplyr::mutate(hometract = HHSTFIPS \* 10\^9 + HHCNTYFP\*10\^6 + HHCT) %\>% dplyr::select(HOUSEID, hometract) \# Next Steps
 
