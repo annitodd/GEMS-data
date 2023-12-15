@@ -62,8 +62,9 @@ full merged dataset
 df_temp <- read_parquet(file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
 names(df_temp)
 ```
+### Summarize
 
-Recall that they don't equally merge, as we saw before (hhct has more households on file). Anna notes that this is likely because lots of households took the survey but only some of them filled out the trips diary part. \## START HERE AFTER TGIVING
+Recall that they don't equally merge, as we saw before (hhct has more households on file). Anna notes that this is likely because lots of households took the survey but only some of them filled out the trips diary part.
 
 ```{r}
 df_temp |>
@@ -102,6 +103,74 @@ The number of **households** in the dataset **with trips**:
 ```{r}
 df_temp |> 
   filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1) |> summarise(n_distinct(HOUSEID))
+```
+
+#### Missing observations
+
+
+```{r}
+summary <- df_temp |>
+    group_by(mode_ATB) |>
+  summarise(countN = n() ,
+            Nmissing = sum(is.na(mode_ATB)),
+    .groups = "drop") |> 
+  arrange(-countN)   
+summary
+```
+
+
+For the **bin class** It looks like the missing values are from the non-trip survey part, but ALSO, many distance bins that are missing (656 of them)
+
+```{r}
+df_temp |> 
+  count(bin_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+
+```
+
+Now **missings for all of the important vars** , the important ones end with _ATB
+
+```{r}
+summary_table <- df_temp |> 
+  select(contains("_ATB")) |> 
+  summarise(
+          countN = n(),
+          across(.cols=everything(), ~sum(is.na(.x)),.names = "{.col}_Missing"),
+            across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
+            , .groups = "drop") |> 
+  arrange(countN) 
+summary_table %>% sjmisc::rotate_df(rn="N distinct")
+```
+
+another way to look at some missings:
+```{r}
+df_temp |> 
+  count(user_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+What if we look only at the ones that are from the trip data:
+```{r}
+summary_table <- df_temp |> 
+  select(contains("_ATB")) |> 
+  group_by(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB) |> 
+  summarise(
+          countN = n(),
+          across(.cols=everything(), ~sum(is.na(.x)),.names = "{.col}_Missing"),
+            across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
+            , .groups = "drop") |> 
+  arrange(countN) 
+summary_table
+summary_table %>% sjmisc::rotate_df(rn="V2 is obs with trips")
+```
+
+#### Number of distinct groups in each variable
+
+```{r}
+summary <- df_trips_only_small |>
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
+    .groups = "drop")
+summary
+summary %>% sjmisc::rotate_df(rn="N distinct")
 ```
 
 ```{r}
@@ -144,7 +213,7 @@ df_trips_only_small <- df_trips_only |>
 names(df_trips_only_small)
 ```
 
-### Examine:
+### Summarise and Examine:
 
 #### the key vars
 
@@ -152,16 +221,6 @@ names(df_trips_only_small)
 names(df_trips_only_small)
 ```
 
-#### Number of distinct in each group
-
-```{r}
-summary <- df_trips_only_small |>
-  summarise("Number Obs" = n(),
-            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
-    .groups = "drop")
-summary
-summary %>% sjmisc::rotate_df(rn="N distinct")
-```
 
 ##### the distinct values
 
@@ -300,7 +359,11 @@ summary
 summary %>% sjmisc::rotate_df(rn="N distinct")
 ```
 
-## Data: make wider dataset
+## Data:
+
+## Data: make analysis dataset (wider)
+
+This is based on notes from here: <https://docs.google.com/spreadsheets/d/1ERafo_dtfzE6o0_MMA9KZGOPj6Jkycqd/edit?usp=sharing&ouid=109372603671818325634&rtpof=true&sd=true>
 
 make wider dataset to examine further:
 

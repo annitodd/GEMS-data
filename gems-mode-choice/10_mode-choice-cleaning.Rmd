@@ -1,10 +1,9 @@
 ---
 date: "Annika created this code doc on 10/21/2023. Last compiled on `r Sys.Date()`"
 output:
-  github_document:
-    df_print: kable
-    toc: TRUE
-    toc_depth: 1
+  github_document
+editor_options: 
+  chunk_output_type: inline
 ---
 
 # Description and Overview
@@ -98,14 +97,14 @@ names(df_trippub)
 names(df_trippub)
 ```
 
-### create key and ID vars
+### create var: key and ID vars
 
 ```{r}
 df_trippub <- df_trippub  %>%
   mutate(rawdatafrom_trippub_ATB = 1)
 ```
 
-### create defined modes
+### create var: modes
 
 Uses TRPTRANS from NHTS
 
@@ -143,7 +142,7 @@ summary <- df_trippub |>
 summary
 ```
 
-### define trip purpose
+### create var: trip purpose
 
 trip_purpose_ATB generated from NHTS field 'whytrp1s' ![](pngs/WHYTRP1S_dictionary.png)
 
@@ -160,6 +159,13 @@ df_trippub <- df_trippub  %>%
                 WHYTRP1S %in% c("80") ~ 'meals',
                 TRUE ~ "other")
       )
+df_trippub <- df_trippub  %>%
+  mutate(trip_purpose_small_ATB = 
+      case_when(WHYTRP1S %in% c("01") ~ 'home',
+                WHYTRP1S %in% c("10","20") ~ 'work_school',
+                WHYTRP1S %in% c("30","40","50","70","80") ~ 'other',
+                TRUE ~ "other")
+      )
 summary <- df_trippub |>
     group_by(WHYTRP1S, trip_purpose_ATB) |>
   summarise(countN = n() ,
@@ -169,7 +175,7 @@ summary <- df_trippub |>
 summary
 ```
 
-### define time bins
+### create var: time bins
 
 trip_purpose_ATB generated from NHTS field 'STRTTIME' ![](pngs/STRTTIME_dictionary.png)
 
@@ -373,7 +379,7 @@ df_trippub |>
             n_distinct(HOUSEID))
 ```
 
-## merge trippub to tripct
+## Merge trippub to tripct
 
 This looks like it works perfectly -- as it should:
 
@@ -383,13 +389,15 @@ df_temp1 <- full_join(df_trippub,df_tripct,
 df_temp1
 ```
 
-## merge that to hhct with full join
+## Merge that to hhct with full join
 
 ```{r}
 df_temp2 <- full_join(df_temp1,df_hhct,
                      by=c("HOUSEID"))
 df_temp2
 ```
+
+### missing
 
 looks like they don't equally merge, as we saw before (hhct has more households on file)
 
@@ -399,12 +407,28 @@ df_temp2 |>
 
 ```
 
-## merge in geotypes
+## Merge in geotypes
 
-match fips codes with the microtypes and geotypes \### for origin first rename so can merge a little later
+For this, we use the crosswalk that matches fips codes with the microtypes and geotypes. We want to match the locations for three things: -
+
+-   origin location
+-   destination location
+-   household location
+
+The way I do this is by first, creating a new copy of the crosswalk for each of those things. Then, merge.
+
+### for origin
+
+#### create copy of crosswalk dataset
 
 ```{r}
-df_geoID_origin <- df_geoID %>% 
+df_geoID_origin <- df_geoID
+```
+
+make geoXmicrotype
+
+```{r}
+df_geoID_origin <- df_geoID_origin %>% 
   select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
   rename(origin_geotype_ATB = geotype,
          origin_microtype_ATB = microtype,
@@ -415,9 +439,39 @@ create micro X geo, in addition to geo X micro
 
 ```{r}
 df_geoID_origin <- df_geoID_origin %>% 
-  unite(origin_microtypeXgeotype_ATB,c("origin_microtype_ATB","origin_geotype_ATB"),sep="_",remove = FALSE)
-
+  unite(origin_microtypeXgeotype_ATB,
+        c("origin_microtype_ATB","origin_geotype_ATB"),
+        sep="_",remove = FALSE)
 ```
+
+create origin_geo2types, which is geotypes that are only 2 categories, one for urban (A and B), and one for rural (CDEF)
+
+```{r}
+df_geoID_origin <- df_geoID_origin %>% 
+  mutate(origin_geo2types = 
+      case_when(origin_geotype_ATB %in% c("A","B") ~ 'AB',
+                origin_geotype_ATB %in% c("C","D","E","F","G") ~ 'CDEF',
+                TRUE ~ "other")
+      )
+summary <- df_geoID_origin |>
+    group_by(origin_geotype_ATB, origin_geo2types) |>
+  summarise(countN = n() ,
+            Nmissing = sum(is.na(origin_geo2types)),
+    .groups = "drop") |> 
+  arrange(origin_geo2types)   
+summary
+```
+
+create micro X origin_geo2types, in addition to geo X micro
+
+```{r}
+df_geoID_origin <- df_geoID_origin %>% 
+  unite(origin_microtypeXorigin_geo2types,
+        c("origin_microtype_ATB","origin_geo2types"),
+        sep="_",remove = FALSE)
+```
+
+#### merge
 
 ```{r}
 df_temp3 <- left_join(df_temp2,df_geoID_origin,
@@ -425,6 +479,8 @@ df_temp3 <- left_join(df_temp2,df_geoID_origin,
 ```
 
 ### for destination
+
+#### create copy (same as for origin)
 
 ```{r}
 df_geoID_dest <- df_geoID %>% 
@@ -442,12 +498,37 @@ df_geoID_dest <- df_geoID_dest %>%
 
 ```
 
+create dest_geo2types, which is geotypes that are only 2 categories, one for urban (A and B), and one for rural (CDEF)
+
+```{r}
+df_geoID_dest <- df_geoID_dest %>% 
+  mutate(dest_geo2types = 
+      case_when(dest_geotype_ATB %in% c("A","B") ~ 'AB',
+                dest_geotype_ATB %in% c("C","D","E","F","G") ~ 'CDEF',
+                TRUE ~ "other")
+      )  
+summary
+```
+
+create micro X dest_geo2types, in addition to geo X micro
+
+```{r}
+df_geoID_dest <- df_geoID_dest %>% 
+  unite(dest_microtypeXdest_geo2types,
+        c("dest_microtype_ATB","dest_geo2types"),
+        sep="_",remove = FALSE)
+```
+
+#### merge
+
 ```{r}
 df_temp4 <- left_join(df_temp3,df_geoID_dest,
                       by = join_by("dest_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
 ```
 
 ### for household location
+
+#### create copy (same as for origin)
 
 ```{r}
 df_geoID_hh <- df_geoID %>% 
@@ -465,9 +546,247 @@ df_geoID_hh <- df_geoID_hh %>%
 
 ```
 
+create hh_geo2types, which is geotypes that are only 2 categories, one for urban (A and B), and one for rural (CDEF)
+
+```{r}
+df_geoID_hh <- df_geoID_hh %>% 
+  mutate(hh_geo2types = 
+      case_when(hh_geotype_ATB %in% c("A","B") ~ 'AB',
+                hh_geotype_ATB %in% c("C","D","E","F","G") ~ 'CDEF',
+                TRUE ~ "other")
+      )  
+summary
+```
+
+create micro X hh_geo2types, in addition to geo X micro
+
+```{r}
+df_geoID_hh <- df_geoID_hh %>% 
+  unite(hh_microtypeXhh_geo2types,
+        c("hh_microtype_ATB","hh_geo2types"),
+        sep="_",remove = FALSE)
+```
+
+#### merge
+
 ```{r}
 df_temp5 <- left_join(df_temp4,df_geoID_hh,
                       by = join_by("hh_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
+```
+
+# DATA - Create new vars
+
+## remove unused temporary datasets,
+
+and Use the dataset from the merge:
+
+```{r}
+df_temp9 <- df_temp5
+rm(df_temp1)
+rm(df_temp2)
+rm(df_temp3)
+rm(df_temp4)
+```
+
+## create var: user class
+
+From Xiaodan: Hi Annika, The user class in V1 GEMS work is defined as follows: Population group derived from NHTS variables (income-HHFAMINC, vehicle - HHVEHCNT, age - R_AGE_IMP):
+
+-   LowIncNoVeh- household income below 50k, no vehicles in household, person age below 65
+
+-   HighIncVeh - household income above 50k, with vehicles in household, person age below 65
+
+-   LowIncVeh - household income below 50k, with vehicles in household, person age below 65
+
+-   HighIncNoVeh-household income above 50k, no vehicles in household, person age below 65
+
+-   HighIncVehSenior - household income above 50k, with vehicles in household, person age above 65
+
+-   LowIncVehSenior - household income below 50k, with vehicles in household, person age above 65
+
+-   HighIncNoVehSenior-household income above 50k, no vehicles in household, person age above 65
+
+-   LowIncNoVehSenior -household income below 50k, no vehicles in household, person age above 65
+
+age: I used 65 OR OLDER
+
+The OLD script THAT NATALIE WROTE of NHTS user class generation is here. The output is attached (only with publicly available attributes). <https://github.com/LBNL-UCB-STI/GEMS-data/blob/demand_data/demand/0_nhts_user_classes_nov2021.R>
+
+*User Classes* another need to have definitions of user classes income, age, vehicle ownership -- do we want to keep that definition? Use this to look at definitions -- but don't merge with it bc maybe it excluded some trips: nhts_user_classes_inc_veh_sr.csv 264234 "C:\FHWA\For FHWA folks\CleanData\NHTS" Xiaodan
+
+First examine the three variables\
+
+### Create hh_vehicleYN_ATB
+
+```{r}
+df_temp9 %>%
+  group_by(HHVEHCNT) %>%
+  summarise(n = n())
+```
+
+```{r}
+df_temp9 <- df_temp9 %>% 
+  mutate(vehicleYN_ATB = case_when(
+    HHVEHCNT == 0 ~ "NoVehicle",
+    HHVEHCNT >  0 ~ "OwnsVehicle"
+  )
+         )
+df_temp9 %>%
+  group_by(vehicleYN_ATB) %>%
+  summarise(n = n())
+```
+
+### Create Senior
+
+```{r}
+df_temp9 %>%
+  group_by(R_AGE_IMP) %>%
+  summarise(n = n())
+```
+
+```{r}
+df_temp9 <- df_temp9 %>% 
+  mutate(isSenior_ATB = case_when(
+    R_AGE_IMP >= 65 ~ "IsSenior",
+    R_AGE_IMP <  65 ~ "NotSenior"
+  )
+         )
+df_temp9 %>%
+  group_by(isSenior_ATB) %>%
+  summarise(n = n())
+```
+
+### Create household income
+
+HHFAMINC Household income bin
+
+-   #-9=Not ascertained
+-   #-8=I don't know
+-   #-7=I prefer not to answer
+-   #01=Less than \$10,000
+-   #02=\$10,000 to \$14,999
+-   #03=\$15,000 to \$24,999
+-   #04=\$25,000 to \$34,999
+-   #05=\$35,000 to \$49,999
+-   #06=\$50,000 to \$74,999
+-   #07=\$75,000 to \$99,999
+-   #08=\$100,000 to \$124,999
+-   #09=\$125,000 to \$149,999
+-   #10=\$150,000 to \$199,999
+-   #11=\$200,000 or more
+
+```{r}
+df_temp9 %>%
+  group_by(HHFAMINC) %>%
+  summarise(n = n())
+```
+
+```{r}
+df_temp9 <- df_temp9 %>% 
+  mutate(incHiLo_ATB = case_when(
+    HHFAMINC %in% c("01","02","03","04","05") ~ "hhIncLow",
+    HHFAMINC %in% c("06","07","08","09","10","11","12") ~ "hhIncHigh",
+    HHFAMINC %in% c("-9","-8","-7") ~ "hhIncNoAnswer"
+    
+  )
+         )
+df_temp9 %>%
+  group_by(incHiLo_ATB) %>%
+  summarise(n = n())
+```
+
+### Where are the missing values?
+
+And are they the same people that are missing trips? In the survey response but missing trip data:
+
+```{r}
+df_temp9 |> 
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+It looks like the missing values are from the non-trip survey part, but also, there were a lot of people who didn't answer:
+
+```{r}
+df_temp9 |> 
+  count(incHiLo_ATB,vehicleYN_ATB,isSenior_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+### Create user class combo of these 3
+
+```{r}
+library(dplyr)
+
+df_temp9 <- df_temp9 %>%
+  mutate(
+    user_class_ATB = case_when(
+      HHFAMINC %in% c("01","02","03","04","05") & 
+        HHVEHCNT == 0 & R_AGE_IMP <  65 ~ "LoInc_NVeh_NSenior",
+      HHFAMINC %in% c("01","02","03","04","05") & 
+        HHVEHCNT >  0 & R_AGE_IMP <  65 ~ "LoInc_YVeh_NSenior",
+      HHFAMINC %in% c("06","07","08","09","10","11","12") & 
+        HHVEHCNT == 0 & R_AGE_IMP <  65 ~ "HiInc_NVeh_NSenior",
+      HHFAMINC %in% c("06","07","08","09","10","11","12") & 
+        HHVEHCNT >  0 & R_AGE_IMP <  65 ~ "HiInc_YVeh_NSenior",
+      
+      HHFAMINC %in% c("01","02","03","04","05") & 
+        HHVEHCNT == 0 & R_AGE_IMP >= 65 ~ "LoInc_NVeh_YSenior",
+      HHFAMINC %in% c("01","02","03","04","05") & 
+        HHVEHCNT >  0 & R_AGE_IMP >= 65 ~ "LoInc_YVeh_YSenior",
+      HHFAMINC %in% c("06","07","08","09","10","11","12") & 
+        HHVEHCNT == 0 & R_AGE_IMP >= 65 ~ "HiInc_NVeh_YSenior",
+      HHFAMINC %in% c("06","07","08","09","10","11","12") & 
+        HHVEHCNT >  0 & R_AGE_IMP >= 65 ~ "HiInc_YVeh_YSenior",
+      
+      HHFAMINC %in% c("-9","-8","-7") & 
+        HHVEHCNT == 0 & R_AGE_IMP <  65 ~ "NAInc_NVeh_NSenior", 
+      HHFAMINC %in% c("-9","-8","-7") & 
+        HHVEHCNT >  0 & R_AGE_IMP <  65 ~ "NAInc_YVeh_NSenior", 
+      HHFAMINC %in% c("-9","-8","-7") & 
+        HHVEHCNT == 0 & R_AGE_IMP >= 65 ~ "NAInc_NVeh_YSenior", 
+      HHFAMINC %in% c("-9","-8","-7") & 
+        HHVEHCNT >  0 & R_AGE_IMP >= 65 ~ "NAInc_YVeh_YSenior", 
+      
+      TRUE ~ "Other" # Add a catch-all category if needed
+    )
+  )
+
+df_temp9 %>%
+  group_by(user_class_ATB) %>%
+  summarise(n = n())
+
+```
+
+```{r}
+df_temp9 |> 
+  count(user_class_ATB,incHiLo_ATB,vehicleYN_ATB,isSenior_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+## create var: distance bins
+
+in the "transition_matrix" tab of the GEMS Master Data dictionary sheet DistanceBinID "Trip distance bin defined as following: • bin1 - distance between 0 and 1 mile • bin2 - distance between 1 and 2 miles • bin3 - distance between 2 and 4 miles • bin4 - distance between 4 and 8 miles • bin5 - distance between 8 and 15 miles • bin6 - distance between 15 and 20 miles • bin7 - distance between 20 and 35 miles • bin8 - distance above 35 miles" \### Note is this inclusive? Check at some point. *Distance Class* Can use this to see what the different classes are -- but these merge with geo types not with census TransitionMatrix-100m.csv 31919 C:\FHWA\For FHWA folks\CleanData Xiaodan
+
+Note about the bins: Using right = FALSE argument: This tells cut to consider the break edges as inclusive for the lower limit of each bin. In other words, a value equal to the lower limit will be included in that bin.
+
+```{r}
+df_temp9 <- df_temp9 %>% 
+  mutate(distance_bin_class_ATB = 
+         cut(TRPMILES, 
+             breaks = c(0, 1, 2, 4, 8, 15, 20, 35, Inf),
+             labels = c("bin1", "bin2", "bin3", "bin4", "bin5", "bin6", "bin7", "bin8"),
+             right = FALSE))
+df_temp9 |>
+  group_by(distance_bin_class_ATB) %>%
+  summarise(n = n())
+```
+
+### Where are the missings?
+
+It looks like the missing values are from the non-trip survey part, but ALSO, many distance bins that are missing (656 of them)
+
+```{r}
+df_temp9 |> 
+  count(distance_bin_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+
 ```
 
 # DATA - Save
@@ -475,7 +794,7 @@ df_temp5 <- left_join(df_temp4,df_geoID_hh,
 ## reorder
 
 ```{r}
- df_temp10 <- df_temp5 %>% 
+ df_temp10 <- df_temp9 %>% 
   relocate(contains("_ATB"))
 ```
 
@@ -527,43 +846,11 @@ knitr::knit_exit()
 
 #--------------------------------------------------------------------------
 
-## Notes
-
-location \<- location %\>% dplyr::mutate(hometract = HHSTFIPS \* 10\^9 + HHCNTYFP\*10\^6 + HHCT) %\>% dplyr::select(HOUSEID, hometract) \# Next Steps
-
-# define distance bins
-
-in the "transition_matrix" tab of the GEMS Master Data dictionary sheet DistanceBinID "Trip distance bin defined as following: • bin1 - distance between 0 and 1 mile • bin2 - distance between 1 and 2 miles • bin3 - distance between 2 and 4 miles • bin4 - distance between 4 and 8 miles • bin5 - distance between 8 and 15 miles • bin6 - distance between 15 and 20 miles • bin7 - distance between 20 and 35 miles • bin8 - distance above 35 miles" \### Note is this inclusive? Check at some point
-
-```{r}
-
-```
-
-## Overview & background
-
-Are there enough counties where there are enough trips within them broken down into heterogeneity that we want to estimate the coefs
-
-enough counties with enough trips for each mode --\> that's what we need
-
-then want to divide by heterogeneous groups.
-
-Next to get heads around: Do we need number of or proportion for each section for each to do the proportional mnl thing Also do we need to weight it?
-
-Goal: how should we collapse the data
-
-## clean data enough that we can get a lots of different histograms
-
-```{r}
-
-```
-
 ## Histogram of trip counts by county. Each county will have a number of trips that's within the county
 
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
-
--   
 
 ```{r}
 
@@ -575,33 +862,9 @@ Goal: how should we collapse the data
 
 ```
 
-## Also pull in the micro geotype indicators
-
-i'll need to ask Xiaodan where the cross walk is between census-tract and microgeotypes
-
-```{r}
-
-```
-
 ## TEMPO -- look at how they did it
 
 Use nhts does county level does fractional split logit? they have bins of income levels how did they decide to use their bins? Were they defining the bins <https://www.nrel.gov/transportation/tempo-model.html>
-
-Note: keep all new vars etc, new definitions, at the beginning or in a separate code
-
-## Future next step
-
-### doing a mnl fractional, even if not totally decided on how to make one unit of obs
-
-filter raw trip in the NHTS by origin county tripct is census tract -- last 4 didgets or something is county number of trips by county by mode
-
--   After that then \*
-
-*User Classes* another need to have definitions of user classes income, age, vehicle ownership -- do we want to keep that definition? Use this to look at definitions -- but don't merge with it bc maybe it excluded some trips: nhts_user_classes_inc_veh_sr.csv 264234 C:\FHWA\For FHWA folks\CleanData\NHTS Xiaodan
-
-*Time Classes* there's a definition somewhere
-
-*Distance Class* Can use this to see what the different classes are -- but these merge with geo types not with census TransitionMatrix-100m.csv 31919 C:\FHWA\For FHWA folks\CleanData Xiaodan
 
 ```{r}
 
@@ -615,21 +878,7 @@ filter raw trip in the NHTS by origin county tripct is census tract -- last 4 di
 
 load(file= file.path(datadir,'NHTS_tract_origin_train_dist_transgeo.RData'))
 
-# NOTE: "ct" is restricted, only data for us, like hhct
-
-# "pub" public data
-
-# "perwgt" is also public
-
-# Step 1. Tripspub, maybe merge to ct. Need to merge to county. Take the
-
-# raw trips, have the county / fips codes, then look at how many trips by county
-
-# do we have per trips
-
-# tract IDs, then the microgeotypes -- crosswalk of tract to geotype
-
-This is from before I talked to Anna and Xiaodan:
+This is from something Natalie did -- probably do not use this at all, but useful to see what she did and maybe to see where it's different:
 
 ```{r}
 df <- load("C:/FHWA_R2/This is from before/Mode_choice_estimation/Data/ModeChoice_Tour_A.Rdata")
@@ -637,13 +886,6 @@ df <- load("C:/FHWA_R2/This is from before/Mode_choice_estimation/Data/ModeChoic
 ("C:/FHWA/For FHWA folks/Mode_choice_estimation/Data/ModeChoice_Tour_A.Rdata")
   
 # df_ProBiz_survey_employees <- read_csv(paste0(box, probiz_path))
-```
-
-```{r}
-df <- od.tr.purpose2 
-rm(od.tr.purpose2)
-df_mode <- TravelMode
-rm(TravelMode)
 ```
 
 # Summary Stats
