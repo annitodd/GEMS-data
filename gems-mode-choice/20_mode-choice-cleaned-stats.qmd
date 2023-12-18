@@ -555,6 +555,7 @@ ggplot(df_trips_only_small,
            fill = distance_bin_class_ATB)) +
   geom_count()
 ```
+
 ```{r}
 #| warning: false
 ggplot(df_trips_only_small, 
@@ -562,6 +563,7 @@ ggplot(df_trips_only_small,
            y = user_class_ATB)) +
   geom_count()
 ```
+
 ```{r}
 #| warning: false
 ggplot(df_trips_only_small, 
@@ -593,8 +595,9 @@ df_collapsed <- df_trips_only_small |>
     count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
           trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
           mode_ATB)
+
 df_collapsed |> 
-  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB) %>% 
   filter(n<100) %>% 
   ggplot( aes(x = n)) +
   geom_histogram(binwidth = 5)
@@ -661,9 +664,9 @@ summary_table
 how many trips in each county
 
 ```{r}
-ggplot(df_county_origin,aes(x=Ntrips)) +
-  geom_histogram(binwidth=1) +
-  coord_cartesian(xlim = c(0, 50))
+# ggplot(df_county_origin,aes(x=Ntrips)) +
+#   geom_histogram(binwidth=1) +
+#   coord_cartesian(xlim = c(0, 50))
 ```
 
 ### by mode type by
@@ -677,19 +680,17 @@ ggplot(df_county_origin,aes(x=Ntrips)) +
 ### by purpose
 
 ```{r}
-df_county_origin <- df_trips_only_small |>
-  group_by(mode_ATB,trip_purpose_ATB) |>
-  summarise(Ntrips = n(),
-            #across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
-    .groups = "drop")
-#df_county_origin
-df_county_origin
+# df_county_origin <- df_trips_only_small |>
+#   group_by(mode_ATB,trip_purpose_ATB) |>
+#   summarise(Ntrips = n(),
+#             #across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+#     .groups = "drop")
+# #df_county_origin
+# df_county_origin
 ```
 
-```         
       across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
         across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
-```
 
 ## Make new proportional dataset
 
