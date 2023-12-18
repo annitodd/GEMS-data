@@ -17,6 +17,10 @@ GitHub: This .Rmd code (possibly qmd if I have to change it with the new update 
 
 ####DEC 6: the next step is to go back to the 10\_ code, and add income
 
+#### Dec 14: next step
+Is to create the dataset that replicates the one i've been talking to anna about in that excel sheet
+But FIRST make a mandatory vs non-mandatory
+
 another to-do is ALSO use the raw raw data in the folder that I found
 
 ## Setup
@@ -123,7 +127,7 @@ For the **bin class** It looks like the missing values are from the non-trip sur
 
 ```{r}
 df_temp |> 
-  count(bin_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+  count(distance_bin_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
 
 ```
 
@@ -162,19 +166,10 @@ summary_table
 summary_table %>% sjmisc::rotate_df(rn="V2 is obs with trips")
 ```
 
-#### Number of distinct groups in each variable
+
 
 ```{r}
-summary <- df_trips_only_small |>
-  summarise("Number Obs" = n(),
-            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
-    .groups = "drop")
-summary
-summary %>% sjmisc::rotate_df(rn="N distinct")
-```
 
-```{r}
-#| output: asis
 
 df_trips_only <- df_temp |> 
   filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1)
@@ -198,15 +193,47 @@ dictionary_v1_2 <- read_csv("dictionary_v1_2.csv") %>%
 dictionary_v1_2 
 ```
 
-### make smaller dataset
+## Smaller dataset
+
+### REMOVE variables
 
 choose only some vars: keep all of the ones that we made. These all end in "\_ATB"
 
 ```{r}
 names(df_trips_only)
+```
+
+
+```{r}
 df_trips_only_small <- df_trips_only |> 
   select(contains("_ATB")) %>% 
   select(-contains("rawdatafrom"))
+df_trips_only_small
+```
+
+
+### save with fewer variables AND only trips
+This keeps only some variables
+
+```{r}
+df_trips_only_small <- df_trips_only |> 
+  select(contains("_ATB")) %>% 
+  select(-contains("rawdatafrom"))
+
+write_parquet(df_trips_only_small,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars.parquet"))
+write_rds(df_trips_only_small,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars.rds"))
+write_csv(df_trips_only_small,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars.csv"))
+```
+
+#### Number of distinct groups in each variable
+
+```{r}
+summary <- df_trips_only_small |>
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
+    .groups = "drop")
+summary
+summary %>% sjmisc::rotate_df(rn="N distinct")
 ```
 
 ```{r}
@@ -291,15 +318,17 @@ ggplot() +
 
 ```
 
+
 ```{r}
 df_trips_only_small %>% 
-  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) 
+  count(origin_microtypeXgeotype_ATB,dest_microtypeXgeotype_ATB) 
 df_trips_only_small %>% 
   count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
   filter(n<100) %>% 
   ggplot( aes(x = n)) +
   geom_histogram(binwidth = 5)
 ```
+
 
 ```{r}
 temp_count <- df_trips_only_small %>% 
@@ -421,7 +450,156 @@ df_microXgeotype <- df_trips_only_small |>
 df_microXgeotype
 ```
 
-## START HERE DEC 6
+## START HERE DEC 14!!
+
+## This is where put the modes wider
+After count, then next step is to get the proportion
+```{r}
+names(df_trips_only_small)
+
+```
+
+### Collapse by type unit etc  
+
+#### CHANGE to summary instead of  through count)
+
+```{r}
+df_collapsed <- df_trips_only_small |>
+    count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
+          trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
+          mode_ATB)
+df_collapsed
+```
+#### histogram
+
+```{r}
+df_collapsed |> 
+  filter(n<20) |>  
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 1)
+```
+
+### Then widen
+```{r}
+df_collapsed_wide <- df_collapsed  %>% 
+   pivot_wider(
+    names_from = mode_ATB,
+    values_from = n
+  )
+df_collapsed_wide
+
+```
+### save widened
+
+```{r}
+df_trips_only_small <- df_trips_only |> 
+  select(contains("_ATB")) %>% 
+  select(-contains("rawdatafrom"))
+
+write_parquet(df_collapsed_wide,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.parquet"))
+write_rds(df_collapsed_wide,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.rds"))
+write_csv(df_collapsed_wide,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.csv"))
+```
+## histograms
+
+
+#### histogram mode stacked
+```{r}
+df_collapsed |> 
+  filter(n<50) |>  
+  ggplot( aes(x = n, fill = mode_ATB)) +
+  geom_histogram(binwidth = 1)
+```
+#### histogram mode faceted
+```{r}
+df_collapsed |> 
+  filter(n<10) |>  
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 1) +
+  facet_wrap(vars(mode_ATB),nrow=2)
+```
+
+#### histogram mode lines
+```{r}
+df_collapsed |> 
+  filter(n<50) |>  
+  ggplot( aes(x = n, colour = mode_ATB)) +
+  geom_freqpoly(binwidth = 1)
+```
+
+#### look at the bins graph
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = dest_microXgeo2types_ATB)) +
+  geom_count()
+```
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = dest_microXgeo2types_ATB,
+           color = start_time_bin_ATB,
+           shape = trip_purpose_small_ATB)) +
+  geom_count()
+```
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = user_class_ATB,
+           color = start_time_bin_ATB,
+           shape = trip_purpose_small_ATB,
+           fill = distance_bin_class_ATB)) +
+  geom_count()
+```
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = user_class_ATB)) +
+  geom_count()
+```
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = distance_bin_class_ATB)) +
+  geom_count()
+```
+
+### END 12/15
+
+#### NEXT 12/15
+Make a new histogram
+
+#### WHY? doesn't this work without count?
+```{r}
+
+df_trips_only_small %>% 
+  count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
+          trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
+          mode_ATB) %>% 
+  filter(n<20) %>% 
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 1)
+```
+
+```{r}
+
+df_collapsed <- df_trips_only_small |>
+    count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
+          trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
+          mode_ATB)
+df_collapsed |> 
+  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  filter(n<100) %>% 
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 5)
+```
+
 
 ### Wide microgeo by mode to get fractions (first get the sum)
 
@@ -483,9 +661,9 @@ summary_table
 how many trips in each county
 
 ```{r}
-# ggplot(df_county_origin,aes(x=Ntrips)) +
-#   geom_histogram(binwidth=1) +
-#   coord_cartesian(xlim = c(0, 50))
+ggplot(df_county_origin,aes(x=Ntrips)) +
+  geom_histogram(binwidth=1) +
+  coord_cartesian(xlim = c(0, 50))
 ```
 
 ### by mode type by
@@ -499,13 +677,13 @@ how many trips in each county
 ### by purpose
 
 ```{r}
-# df_county_origin <- df_trips_only_small |>
-#   group_by(mode_ATB,trip_purpose_ATB) |>
-#   summarise(Ntrips = n(),
-#             #across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
-#     .groups = "drop")
-# #df_county_origin
-# df_county_origin
+df_county_origin <- df_trips_only_small |>
+  group_by(mode_ATB,trip_purpose_ATB) |>
+  summarise(Ntrips = n(),
+            #across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+    .groups = "drop")
+#df_county_origin
+df_county_origin
 ```
 
 ```         

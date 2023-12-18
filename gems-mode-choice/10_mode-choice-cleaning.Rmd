@@ -173,6 +173,13 @@ summary <- df_trippub |>
     .groups = "drop") |> 
   arrange(WHYTRP1S)   
 summary
+summary <- df_trippub |>
+    group_by(trip_purpose_ATB, trip_purpose_small_ATB) |>
+  summarise(countN = n() ,
+            Nmissing = sum(is.na(mode_ATB)),
+    .groups = "drop") |> 
+  arrange(trip_purpose_small_ATB)   
+summary
 ```
 
 ### create var: time bins
@@ -448,17 +455,17 @@ create origin_geo2types, which is geotypes that are only 2 categories, one for u
 
 ```{r}
 df_geoID_origin <- df_geoID_origin %>% 
-  mutate(origin_geo2types = 
+  mutate(origin_geo2types_ATB = 
       case_when(origin_geotype_ATB %in% c("A","B") ~ 'AB',
                 origin_geotype_ATB %in% c("C","D","E","F","G") ~ 'CDEF',
                 TRUE ~ "other")
       )
 summary <- df_geoID_origin |>
-    group_by(origin_geotype_ATB, origin_geo2types) |>
+    group_by(origin_geotype_ATB, origin_geo2types_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(origin_geo2types)),
+            Nmissing = sum(is.na(origin_geo2types_ATB)),
     .groups = "drop") |> 
-  arrange(origin_geo2types)   
+  arrange(origin_geo2types_ATB)   
 summary
 ```
 
@@ -466,8 +473,8 @@ create micro X origin_geo2types, in addition to geo X micro
 
 ```{r}
 df_geoID_origin <- df_geoID_origin %>% 
-  unite(origin_microtypeXorigin_geo2types,
-        c("origin_microtype_ATB","origin_geo2types"),
+  unite(origin_microXgeo2types_ATB,
+        c("origin_microtype_ATB","origin_geo2types_ATB"),
         sep="_",remove = FALSE)
 ```
 
@@ -502,20 +509,19 @@ create dest_geo2types, which is geotypes that are only 2 categories, one for urb
 
 ```{r}
 df_geoID_dest <- df_geoID_dest %>% 
-  mutate(dest_geo2types = 
+  mutate(dest_geo2types_ATB = 
       case_when(dest_geotype_ATB %in% c("A","B") ~ 'AB',
                 dest_geotype_ATB %in% c("C","D","E","F","G") ~ 'CDEF',
                 TRUE ~ "other")
       )  
 summary
 ```
-
 create micro X dest_geo2types, in addition to geo X micro
 
 ```{r}
 df_geoID_dest <- df_geoID_dest %>% 
-  unite(dest_microtypeXdest_geo2types,
-        c("dest_microtype_ATB","dest_geo2types"),
+  unite(dest_microXgeo2types_ATB,
+        c("dest_microtype_ATB","dest_geo2types_ATB"),
         sep="_",remove = FALSE)
 ```
 
@@ -550,7 +556,7 @@ create hh_geo2types, which is geotypes that are only 2 categories, one for urban
 
 ```{r}
 df_geoID_hh <- df_geoID_hh %>% 
-  mutate(hh_geo2types = 
+  mutate(hh_geo2types_ATB = 
       case_when(hh_geotype_ATB %in% c("A","B") ~ 'AB',
                 hh_geotype_ATB %in% c("C","D","E","F","G") ~ 'CDEF',
                 TRUE ~ "other")
@@ -562,8 +568,8 @@ create micro X hh_geo2types, in addition to geo X micro
 
 ```{r}
 df_geoID_hh <- df_geoID_hh %>% 
-  unite(hh_microtypeXhh_geo2types,
-        c("hh_microtype_ATB","hh_geo2types"),
+  unite(hh_microXgeo2types_ATB,
+        c("hh_microtype_ATB","hh_geo2types_ATB"),
         sep="_",remove = FALSE)
 ```
 
@@ -789,6 +795,8 @@ df_temp9 |>
 
 ```
 
+
+
 # DATA - Save
 
 ## reorder
@@ -801,6 +809,13 @@ df_temp9 |>
 remove temporary dataframes
 
 ```{r}
+rm(df_geoID)
+rm(df_geoID_origin)
+rm(df_geoID_dest)
+rm(df_geoID_hh)
+rm(df_hhct)
+rm(df_tripct)
+rm(df_trippub)
 rm(df_temp1)
 rm(df_temp2)
 rm(df_temp3)
@@ -809,11 +824,12 @@ rm(df_temp5)
 rm(df_temp6)
 rm(df_temp7)
 rm(df_temp8)
-rm(df_temp9)
+#rm(df_temp9)
 ```
 
 ## save
 
+### save whole set
 Save the complete merged file as a parquet file and a csv file, and also a R specific rds file
 
 ```{r}
@@ -822,10 +838,30 @@ write_rds(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-fu
 write_csv(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.csv"))
 ```
 
-Save only the variables we might want into a smaller file (Currently nothing here)
+### save with only the trips
+This discards observations that are households but the households don't have any associated trips
 
 ```{r}
+df_trips_only <- df_temp10 |> 
+  filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1)
 
+write_parquet(df_trips_only,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips.parquet"))
+write_rds(df_trips_only,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips.rds"))
+write_csv(df_trips_only,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips.csv"))
+```
+
+
+### save with fewer variables AND only trips
+This keeps only some variables
+
+```{r}
+df_trips_only_small <- df_trips_only |> 
+  select(contains("_ATB")) %>% 
+  select(-contains("rawdatafrom"))
+
+write_parquet(df_trips_only_small,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars.parquet"))
+write_rds(df_trips_only_small,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars.rds"))
+write_csv(df_trips_only_small,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars.csv"))
 ```
 
 # Clean up and conclude
