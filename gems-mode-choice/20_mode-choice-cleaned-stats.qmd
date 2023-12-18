@@ -1,7 +1,9 @@
 ---
 title: "Summary Stats"
 date: "Annika created this code doc on 10/26/2023. Last compiled on `r Sys.Date()`"
-format: gfm
+format: 
+  gfm:
+    toc: true
 execute:
   warning: false
 ---
@@ -67,9 +69,9 @@ full merged dataset
 df_temp_full <- read_parquet(file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
 names(df_temp_full)
 ```
-### Summarize
+#### Summarize
 
-Recall that they don't equally merge, as we saw before (hhct has more households on file). Anna notes that this is likely because lots of households took the survey but only some of them filled out the trips diary part.
+Recall that the trips dataset and the households dataset, they don't equally merge, as we saw before (hhct has more households on file). Anna notes that this is likely because lots of households took the survey but only some of them filled out the trips diary part.
 
 ```{r}
 df_temp_full |>
@@ -180,7 +182,7 @@ df_trips_only |>
 df_trips_only <- ungroup(df_trips_only)
 ```
 
-### list of variables and descriptions
+#### List of variables and descriptions
 
 ```{r}
 names(df_trips_only)

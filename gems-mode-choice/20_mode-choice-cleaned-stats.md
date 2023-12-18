@@ -1,6 +1,45 @@
 # Summary Stats
 Invalid Date
 
+- [Description and Overview](#description-and-overview)
+  - [Latest Updates](#latest-updates)
+- [Setup](#setup)
+  - [libraries](#libraries)
+  - [file path directories](#file-path-directories)
+- [Data: Open, summarize](#data-open-summarize)
+  - [Full dataset](#full-dataset)
+- [Smaller dataset](#smaller-dataset)
+  - [REMOVE variables](#remove-variables)
+  - [save with fewer variables AND only
+    trips](#save-with-fewer-variables-and-only-trips)
+  - [Summarise and Examine:](#summarise-and-examine)
+- [Data:](#data)
+- [Data: make analysis dataset
+  (wider)](#data-make-analysis-dataset-wider)
+  - [make county level dataset](#make-county-level-dataset)
+  - [make microXgeotype level
+    dataset](#make-microxgeotype-level-dataset)
+- [START HERE DEC 14!!](#start-here-dec-14)
+- [This is where put the modes
+  wider](#this-is-where-put-the-modes-wider)
+  - [Collapse by type unit etc](#collapse-by-type-unit-etc)
+  - [Then widen](#then-widen)
+  - [save widened](#save-widened)
+- [histograms](#histograms)
+  - [END 12/15](#end-1215)
+  - [Wide microgeo by mode to get fractions (first get the
+    sum)](#wide-microgeo-by-mode-to-get-fractions-first-get-the-sum)
+  - [new dataset](#new-dataset)
+- [Summary stats by coumty](#summary-stats-by-coumty)
+  - [basic](#basic)
+  - [by county](#by-county)
+  - [by mode type by](#by-mode-type-by)
+  - [by purpose](#by-purpose)
+- [Make new proportional dataset](#make-new-proportional-dataset)
+  - [by microXgeotype](#by-microxgeotype)
+- [fractional split logit](#fractional-split-logit)
+  - [methodology](#methodology)
+
 html: code-fold: true df-print: paged
 
 ## Description and Overview
@@ -58,9 +97,9 @@ data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
 data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
 ```
 
-## Data: open and slim down
+## Data: Open, summarize
 
-### read in big dataset
+### Full dataset
 
 full merged dataset
 
@@ -145,12 +184,12 @@ names(df_temp_full)
     [147] "DEST_CT"                      "HHSTFIPS.y"                  
     [149] "HHCNTYFP"                     "HHCT"                        
 
-### Summarize
+#### Summarize
 
-Recall that they don’t equally merge, as we saw before (hhct has more
-households on file). Anna notes that this is likely because lots of
-households took the survey but only some of them filled out the trips
-diary part.
+Recall that the trips dataset and the households dataset, they don’t
+equally merge, as we saw before (hhct has more households on file). Anna
+notes that this is likely because lots of households took the survey but
+only some of them filled out the trips diary part.
 
 ``` r
 df_temp_full |>
@@ -446,7 +485,7 @@ df_trips_only |>
 df_trips_only <- ungroup(df_trips_only)
 ```
 
-### list of variables and descriptions
+#### List of variables and descriptions
 
 ``` r
 names(df_trips_only)
