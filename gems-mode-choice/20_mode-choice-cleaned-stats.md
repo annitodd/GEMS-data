@@ -1,4 +1,5 @@
 # Summary Stats
+Invalid Date
 
 html: code-fold: true df-print: paged
 
@@ -64,8 +65,8 @@ data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
 full merged dataset
 
 ``` r
-df_temp <- read_parquet(file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
-names(df_temp)
+df_temp_full <- read_parquet(file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
+names(df_temp_full)
 ```
 
       [1] "rawdatafrom_trippub_ATB"      "mode_ATB"                    
@@ -152,7 +153,7 @@ households took the survey but only some of them filled out the trips
 diary part.
 
 ``` r
-df_temp |>
+df_temp_full |>
   count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
 ```
 
@@ -163,14 +164,14 @@ df_temp |>
     2                      NA                     NA                    1  12474
 
 ``` r
-df_temp <- ungroup(df_temp)
+df_temp_full <- ungroup(df_temp_full)
 ```
 
 The number of **observations** in the dataset (these should give the
 same answer):
 
 ``` r
-df_temp |> summarise(n())
+df_temp_full |> summarise(n())
 ```
 
     # A tibble: 1 × 1
@@ -179,7 +180,7 @@ df_temp |> summarise(n())
     1 936046
 
 ``` r
-df_temp |> summarise(n_distinct(HOUSEID,PERSONID,TDTRPNUM))
+df_temp_full |> summarise(n_distinct(HOUSEID,PERSONID,TDTRPNUM))
 ```
 
     # A tibble: 1 × 1
@@ -190,7 +191,7 @@ df_temp |> summarise(n_distinct(HOUSEID,PERSONID,TDTRPNUM))
 number of **people** in the dataset:
 
 ``` r
-df_temp |> summarise(n_distinct(HOUSEID,PERSONID))
+df_temp_full |> summarise(n_distinct(HOUSEID,PERSONID))
 ```
 
     # A tibble: 1 × 1
@@ -202,7 +203,7 @@ number of **people** in the dataset **with trips** (there are FEWER
 people with trips than there are total people:
 
 ``` r
-df_temp |> 
+df_temp_full |> 
   filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1) |> summarise(n_distinct(HOUSEID,PERSONID))
 ```
 
@@ -214,7 +215,7 @@ df_temp |>
 The number of **households** in the dataset:
 
 ``` r
-df_temp |> summarise(n_distinct(HOUSEID))
+df_temp_full |> summarise(n_distinct(HOUSEID))
 ```
 
     # A tibble: 1 × 1
@@ -225,7 +226,7 @@ df_temp |> summarise(n_distinct(HOUSEID))
 The number of **households** in the dataset **with trips**:
 
 ``` r
-df_temp |> 
+df_temp_full |> 
   filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1) |> summarise(n_distinct(HOUSEID))
 ```
 
@@ -237,7 +238,7 @@ df_temp |>
 #### Missing observations
 
 ``` r
-summary <- df_temp |>
+summary <- df_temp_full |>
     group_by(mode_ATB) |>
   summarise(countN = n() ,
             Nmissing = sum(is.na(mode_ATB)),
@@ -263,7 +264,7 @@ non-trip survey part, but ALSO, many distance bins that are missing (656
 of them)
 
 ``` r
-df_temp |> 
+df_temp_full |> 
   count(distance_bin_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
 ```
 
@@ -285,7 +286,7 @@ Now **missings for all of the important vars** , the important ones end
 with \_ATB
 
 ``` r
-summary_table <- df_temp |> 
+summary_table <- df_temp_full |> 
   select(contains("_ATB")) |> 
   summarise(
           countN = n(),
@@ -337,7 +338,7 @@ summary_table %>% sjmisc::rotate_df(rn="N distinct")
 another way to look at some missings:
 
 ``` r
-df_temp |> 
+df_temp_full |> 
   count(user_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
 ```
 
@@ -361,7 +362,7 @@ df_temp |>
 What if we look only at the ones that are from the trip data:
 
 ``` r
-summary_table <- df_temp |> 
+summary_table <- df_temp_full |> 
   select(contains("_ATB")) |> 
   group_by(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB) |> 
   summarise(
@@ -429,7 +430,7 @@ summary_table %>% sjmisc::rotate_df(rn="V2 is obs with trips")
     36          distance_bin_class_ATB_Ndis     1      9
 
 ``` r
-df_trips_only <- df_temp |> 
+df_trips_only <- df_temp_full |> 
   filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1)
 
 df_trips_only |> 
