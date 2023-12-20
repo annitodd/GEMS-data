@@ -592,6 +592,7 @@ rm(df_temp1)
 rm(df_temp2)
 rm(df_temp3)
 rm(df_temp4)
+gc()
 ```
 
 ## create var: user class
@@ -806,7 +807,7 @@ df_temp9 |>
   relocate(contains("_ATB"))
 ```
 
-remove temporary dataframes
+## remove temporary dataframes
 
 ```{r}
 rm(df_geoID)
@@ -825,6 +826,7 @@ rm(df_temp6)
 rm(df_temp7)
 rm(df_temp8)
 #rm(df_temp9)
+gc()
 ```
 
 ## save
@@ -839,6 +841,11 @@ write_csv(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-fu
 ```
 
 ### save with only the trips
+
+```{r}
+df_temp_full <- read_parquet(file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
+names(df_temp_full)
+```
 This discards observations that are households but the households don't have any associated trips
 
 ```{r}
@@ -864,12 +871,43 @@ write_rds(df_trips_only_small,  file.path(data_results, "10-mode-choice-cleaning
 write_csv(df_trips_only_small,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars.csv"))
 ```
 
+# Widen collapse and save
+### Collapse by type unit etc  
+
+#### CHANGE to summary instead of  through count)
+
+```{r}
+df_collapsed <- df_trips_only_small |>
+    count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
+          trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
+          mode_ATB)
+df_collapsed
+```
+
+### Then widen
+```{r}
+df_collapsed_wide <- df_collapsed  %>% 
+   pivot_wider(
+    names_from = mode_ATB,
+    values_from = n
+  )
+df_collapsed_wide
+
+```
+### save widened
+
+```{r}
+write_parquet(df_collapsed_wide,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.parquet"))
+write_rds(df_collapsed_wide,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.rds"))
+write_csv(df_collapsed_wide,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.csv"))
+```
 # Clean up and conclude
 
 ## Remove temp10
 
 ```{r}
 rm(df_temp10)
+gc()
 ```
 
 ## Exit knittr

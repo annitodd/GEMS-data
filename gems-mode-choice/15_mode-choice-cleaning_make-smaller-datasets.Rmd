@@ -1,0 +1,139 @@
+---
+date: "Annika created this code doc on 10/21/2023. Last compiled on `r Sys.Date()`"
+output:
+  github_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Description and Overview
+
+This code opens the full merged dataset that was made in the R code: 10_mode-choice-cleaning, and makes several smaller versions of the dataset for use later in histograms etc. Then saves the data in three versions: csv, parquet (faster to load and save, and is available across platforms), and R
+
+GitHub: This .Rmd code (possibly qmd if I have to change it with the new update to R Studio) is synced to Github, and when this code is knit, it's also synced to GitHub, as a .md file, which makes the knitted code easy to read (kind of like python code.) Currently in a FORK: <https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice/>
+
+Workflow: this part of the project (mode choice) begins with the first R code: "10_mode-choice-cleaning.Rmd" , and then goes on sequentially.
+
+# Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE) 
+```
+
+## libraries
+
+```{r}
+library(arrow)
+library(tidyverse)
+# library(readxl)
+# library(rstudioapi)
+# library(scales)
+# library(writexl)
+```
+
+## file path directories
+
+```{r}
+# get current root directory of the user's Github repo
+root <- getwd() # Saves current WD 
+while ((basename(root) != "GEMS-data")) {
+  root <- dirname(root)
+} # Sets root equal to the location of the Github repo
+source(file.path(root, "paths.R")) # Runs paths.R file found in users Github repo
+```
+
+```{r}
+data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
+```
+
+# Open full dataset
+
+```{r}
+df_temp_full <- read_parquet(file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
+names(df_temp_full)
+```
+
+# Make smaller datasets
+
+## Save with only trips
+
+This discards observations that are households but the households don't have any associated trips
+
+```{r}
+df_trips_only <- df_temp_full |> 
+  filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1)
+
+write_parquet(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips.parquet"))
+write_rds(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips.rds"))
+write_csv(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips.csv"))
+```
+
+## Save with fewer variables AND only trips
+
+This keeps only some variables
+
+```{r}
+df_trips_only_small <- df_trips_only |> 
+  select(contains("_ATB")) %>% 
+  select(-contains("rawdatafrom"))
+```
+
+Save with fewer variables
+```{r}
+write_parquet(df_trips_only_small,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars.parquet"))
+write_rds(df_trips_only_small,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars.rds"))
+write_csv(df_trips_only_small,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars.csv"))
+```
+
+# Widen collapse and save
+
+## Collapse 
+
+Collapse by type unit etc
+
+### TODO CHANGE to summary instead of  through count)
+
+```{r}
+df_collapsed <- df_trips_only_small |>
+    count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
+          trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
+          mode_ATB)
+df_collapsed
+```
+
+## Then widen
+```{r}
+df_collapsed_wide <- df_collapsed  %>% 
+   pivot_wider(
+    names_from = mode_ATB,
+    values_from = n
+  )
+df_collapsed_wide
+```
+## Save widened collapsed 
+
+```{r}
+write_parquet(df_collapsed_wide,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.parquet"))
+write_rds(df_collapsed_wide,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.rds"))
+write_csv(df_collapsed_wide,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.csv"))
+```
+# Clean up and conclude
+
+## Remove temp10
+
+```{r}
+rm(df_temp_full)
+rm(df_collapsed_wide)
+rm(df_collapsed)
+rm(df_trips_only)
+rm(df_trips_only_small)
+gc()
+```
+
+## Exit knittr
+
+```{r exit}
+knitr::knit_exit()
+```
+
+# The End------------------------------------------------------------------

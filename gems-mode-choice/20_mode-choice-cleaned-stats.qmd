@@ -1,14 +1,13 @@
 ---
 title: "Summary Stats"
-date: "Annika created this code doc on 10/26/2023. Last compiled on `r Sys.Date()`"
+subtitle: "Annika created this code doc on 10/26/2023. Last compiled on `r Sys.Date()`"
 format: 
   gfm:
     toc: true
+    toc-depth: 4
 execute:
   warning: false
 ---
-
-html: code-fold: true df-print: paged
 
 ## Description and Overview
 
@@ -462,17 +461,7 @@ names(df_trips_only_small)
 
 ```
 
-### Collapse by type unit etc  
 
-#### CHANGE to summary instead of  through count)
-
-```{r}
-df_collapsed <- df_trips_only_small |>
-    count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
-          trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
-          mode_ATB)
-df_collapsed
-```
 #### histogram
 
 ```{r}
@@ -482,27 +471,7 @@ df_collapsed |>
   geom_histogram(binwidth = 1)
 ```
 
-### Then widen
-```{r}
-df_collapsed_wide <- df_collapsed  %>% 
-   pivot_wider(
-    names_from = mode_ATB,
-    values_from = n
-  )
-df_collapsed_wide
 
-```
-### save widened
-
-```{r}
-df_trips_only_small <- df_trips_only |> 
-  select(contains("_ATB")) %>% 
-  select(-contains("rawdatafrom"))
-
-write_parquet(df_collapsed_wide,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.parquet"))
-write_rds(df_collapsed_wide,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.rds"))
-write_csv(df_collapsed_wide,  file.path(data_results, "10-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.csv"))
-```
 ## histograms
 
 
