@@ -52,17 +52,118 @@ data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
 df_temp_full <- read_parquet(file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
 names(df_temp_full)
 ```
+## Summarize 
 
-# Make smaller datasets
+### households vs trips
+
+Recall that the trips dataset and the households dataset, they don't equally merge, as we saw before (hhct has more households on file). Anna notes that this is likely because lots of households took the survey but only some of them filled out the trips diary part.
+
+```{r}
+df_temp_full |>
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+df_temp_full <- ungroup(df_temp_full)
+```
+
+### number of observations 
+
+The number of total **observations** in the dataset (these should give the same answer):
+```{r}
+df_temp_full |> summarise(n())
+df_temp_full |> summarise(n_distinct(HOUSEID,PERSONID,TDTRPNUM))
+```
+number of **people** in the dataset:
+```{r}
+df_temp_full |> summarise(n_distinct(HOUSEID,PERSONID))
+```
+number of **people** in the dataset **with trips** (there are FEWER people with trips than there are total people:
+```{r}
+df_temp_full |> 
+  filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1) |> summarise(n_distinct(HOUSEID,PERSONID))
+```
+The number of **households** in the dataset:
+```{r}
+df_temp_full |> summarise(n_distinct(HOUSEID))
+```
+The number of **households** in the dataset **with trips**:
+```{r}
+df_temp_full |> 
+  filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1) |> summarise(n_distinct(HOUSEID))
+```
+
+### Missing observations
+
+```{r}
+summary <- df_temp_full |>
+    group_by(mode_ATB) |>
+  summarise(countN = n() ,
+            Nmissing = sum(is.na(mode_ATB)),
+    .groups = "drop") |> 
+  arrange(-countN)   
+summary
+```
+For the **bin class** It looks like the missing values are from the non-trip survey part, but ALSO, many distance bins that are missing (656 of them)
+
+```{r}
+df_temp_full |> 
+  count(distance_bin_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+Now **missings for all of the important vars** , the important ones end with _ATB
+
+```{r}
+summary_table <- df_temp_full |> 
+  select(contains("_ATB")) |> 
+  summarise(
+          countN = n(),
+          across(.cols=everything(), ~sum(is.na(.x)),.names = "{.col}_Missing"),
+            across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
+            , .groups = "drop") |> 
+  arrange(countN) 
+summary_table %>% sjmisc::rotate_df(rn="N distinct")
+```
+
+another way to look at some missings:
+```{r}
+df_temp_full |> 
+  count(user_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+What if we look only at the ones that are from the trip data:
+```{r}
+summary_table <- df_temp_full |> 
+  select(contains("_ATB")) |> 
+  group_by(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB) |> 
+  summarise(
+          countN = n(),
+          across(.cols=everything(), ~sum(is.na(.x)),.names = "{.col}_Missing"),
+            across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
+            , .groups = "drop") |> 
+  arrange(countN) 
+summary_table
+summary_table %>% sjmisc::rotate_df(rn="V2 is obs with trips")
+```
+
+
+
+
+# Make smaller datasets and Save
 
 ## Save with only trips
 
 This discards observations that are households but the households don't have any associated trips
-
 ```{r}
 df_trips_only <- df_temp_full |> 
   filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1)
+```
 
+Now number of observations
+```{r}
+df_trips_only |> 
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+df_trips_only <- ungroup(df_trips_only)
+```
+Save
+```{r}
 write_parquet(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips.parquet"))
 write_rds(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips.rds"))
 write_csv(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips.csv"))
@@ -70,15 +171,13 @@ write_csv(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_outpu
 
 ## Save with fewer variables AND only trips
 
-This keeps only some variables
-
+This keeps only some variables that we'll need for the analysis
 ```{r}
 df_trips_only_small <- df_trips_only |> 
   select(contains("_ATB")) %>% 
   select(-contains("rawdatafrom"))
 ```
-
-Save with fewer variables
+Save 
 ```{r}
 write_parquet(df_trips_only_small,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars.parquet"))
 write_rds(df_trips_only_small,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars.rds"))
@@ -86,6 +185,15 @@ write_csv(df_trips_only_small,  file.path(data_results, "15-mode-choice-cleaning
 ```
 
 # Widen collapse and save
+
+make analysis dataset (wider)
+
+This is based on notes from here: <https://docs.google.com/spreadsheets/d/1ERafo_dtfzE6o0_MMA9KZGOPj6Jkycqd/edit?usp=sharing&ouid=109372603671818325634&rtpof=true&sd=true>
+
+make wider dataset to examine further:
+
+then use the smaller to make wider dataset. This is to make the modes go across rather than down
+
 
 ## Collapse 
 
@@ -97,8 +205,15 @@ Collapse by type unit etc
 df_collapsed <- df_trips_only_small |>
     count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
           trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
-          mode_ATB)
+          mode_ATB,origin_destination__microXgeo2types_ATB,origin_destination__microtype_ATB)
 df_collapsed
+```
+### Save collapsed 
+
+```{r}
+write_parquet(df_collapsed,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars-collapsed.parquet"))
+write_rds(df_collapsed,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars-collapsed.rds"))
+write_csv(df_collapsed,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars-collapsed.csv"))
 ```
 
 ## Then widen
@@ -110,7 +225,7 @@ df_collapsed_wide <- df_collapsed  %>%
   )
 df_collapsed_wide
 ```
-## Save widened collapsed 
+### Save widened collapsed 
 
 ```{r}
 write_parquet(df_collapsed_wide,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.parquet"))
@@ -119,7 +234,7 @@ write_csv(df_collapsed_wide,  file.path(data_results, "15-mode-choice-cleaning_o
 ```
 # Clean up and conclude
 
-## Remove temp10
+## Remove datasets
 
 ```{r}
 rm(df_temp_full)
@@ -127,7 +242,7 @@ rm(df_collapsed_wide)
 rm(df_collapsed)
 rm(df_trips_only)
 rm(df_trips_only_small)
-gc()
+# gc()
 ```
 
 ## Exit knittr

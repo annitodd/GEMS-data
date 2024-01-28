@@ -128,6 +128,294 @@ names(df_temp_full)
     ## [147] "DEST_CT"                      "HHSTFIPS.y"                  
     ## [149] "HHCNTYFP"                     "HHCT"
 
+## Summarize
+
+### households vs trips
+
+Recall that the trips dataset and the households dataset, they don’t
+equally merge, as we saw before (hhct has more households on file). Anna
+notes that this is likely because lots of households took the survey but
+only some of them filled out the trips diary part.
+
+``` r
+df_temp_full |>
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+    ## # A tibble: 2 × 4
+    ##   rawdatafrom_trippub_ATB rawdatafrom_tripct_ATB rawdatafrom_hhct_ATB      n
+    ##                     <dbl>                  <dbl>                <dbl>  <int>
+    ## 1                       1                      1                    1 923572
+    ## 2                      NA                     NA                    1  12474
+
+``` r
+df_temp_full <- ungroup(df_temp_full)
+```
+
+### number of observations
+
+The number of total **observations** in the dataset (these should give
+the same answer):
+
+``` r
+df_temp_full |> summarise(n())
+```
+
+    ## # A tibble: 1 × 1
+    ##    `n()`
+    ##    <int>
+    ## 1 936046
+
+``` r
+df_temp_full |> summarise(n_distinct(HOUSEID,PERSONID,TDTRPNUM))
+```
+
+    ## # A tibble: 1 × 1
+    ##   `n_distinct(HOUSEID, PERSONID, TDTRPNUM)`
+    ##                                       <int>
+    ## 1                                    936046
+
+number of **people** in the dataset:
+
+``` r
+df_temp_full |> summarise(n_distinct(HOUSEID,PERSONID))
+```
+
+    ## # A tibble: 1 × 1
+    ##   `n_distinct(HOUSEID, PERSONID)`
+    ##                             <int>
+    ## 1                          231668
+
+number of **people** in the dataset **with trips** (there are FEWER
+people with trips than there are total people:
+
+``` r
+df_temp_full |> 
+  filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1) |> summarise(n_distinct(HOUSEID,PERSONID))
+```
+
+    ## # A tibble: 1 × 1
+    ##   `n_distinct(HOUSEID, PERSONID)`
+    ##                             <int>
+    ## 1                          219194
+
+The number of **households** in the dataset:
+
+``` r
+df_temp_full |> summarise(n_distinct(HOUSEID))
+```
+
+    ## # A tibble: 1 × 1
+    ##   `n_distinct(HOUSEID)`
+    ##                   <int>
+    ## 1                129696
+
+The number of **households** in the dataset **with trips**:
+
+``` r
+df_temp_full |> 
+  filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1) |> summarise(n_distinct(HOUSEID))
+```
+
+    ## # A tibble: 1 × 1
+    ##   `n_distinct(HOUSEID)`
+    ##                   <int>
+    ## 1                117222
+
+### Missing observations
+
+``` r
+summary <- df_temp_full |>
+    group_by(mode_ATB) |>
+  summarise(countN = n() ,
+            Nmissing = sum(is.na(mode_ATB)),
+    .groups = "drop") |> 
+  arrange(-countN)   
+summary
+```
+
+    ## # A tibble: 8 × 3
+    ##   mode_ATB countN Nmissing
+    ##   <chr>     <int>    <int>
+    ## 1 hv       800071        0
+    ## 2 walk      81288        0
+    ## 3 bus       20254        0
+    ## 4 <NA>      12474    12474
+    ## 5 bike       8034        0
+    ## 6 other      6638        0
+    ## 7 rail       4474        0
+    ## 8 taxi       2813        0
+
+For the **bin class** It looks like the missing values are from the
+non-trip survey part, but ALSO, many distance bins that are missing (656
+of them)
+
+``` r
+df_temp_full |> 
+  count(distance_bin_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+    ## # A tibble: 10 × 4
+    ##    distance_bin_class_ATB rawdatafrom_tripct_ATB rawdatafrom_hhct_ATB      n
+    ##    <fct>                                   <dbl>                <dbl>  <int>
+    ##  1 bin1                                        1                    1 176959
+    ##  2 bin2                                        1                    1 140845
+    ##  3 bin3                                        1                    1 183539
+    ##  4 bin4                                        1                    1 171526
+    ##  5 bin5                                        1                    1 120310
+    ##  6 bin6                                        1                    1  40437
+    ##  7 bin7                                        1                    1  48542
+    ##  8 bin8                                        1                    1  40758
+    ##  9 <NA>                                        1                    1    656
+    ## 10 <NA>                                       NA                    1  12474
+
+Now **missings for all of the important vars** , the important ones end
+with \_ATB
+
+``` r
+summary_table <- df_temp_full |> 
+  select(contains("_ATB")) |> 
+  summarise(
+          countN = n(),
+          across(.cols=everything(), ~sum(is.na(.x)),.names = "{.col}_Missing"),
+            across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
+            , .groups = "drop") |> 
+  arrange(countN) 
+summary_table %>% sjmisc::rotate_df(rn="N distinct")
+```
+
+    ##                              N distinct     V1
+    ## 1                                countN 936046
+    ## 2       rawdatafrom_trippub_ATB_Missing  12474
+    ## 3                      mode_ATB_Missing  12474
+    ## 4              trip_purpose_ATB_Missing  12474
+    ## 5        trip_purpose_small_ATB_Missing  12474
+    ## 6            start_time_bin_ATB_Missing  12474
+    ## 7               orig_fips11_ATB_Missing  12474
+    ## 8               dest_fips11_ATB_Missing  12474
+    ## 9        rawdatafrom_tripct_ATB_Missing  12474
+    ## 10                hh_fips11_ATB_Missing      0
+    ## 11         rawdatafrom_hhct_ATB_Missing      0
+    ## 12 origin_microtypeXgeotype_ATB_Missing  12717
+    ## 13           origin_geotype_ATB_Missing  12717
+    ## 14   origin_microXgeo2types_ATB_Missing  12717
+    ## 15         origin_microtype_ATB_Missing  12717
+    ## 16     origin_geoXmicrotype_ATB_Missing  12717
+    ## 17         origin_geo2types_ATB_Missing  12717
+    ## 18   dest_microtypeXgeotype_ATB_Missing  12701
+    ## 19             dest_geotype_ATB_Missing  12701
+    ## 20     dest_microXgeo2types_ATB_Missing  12701
+    ## 21           dest_microtype_ATB_Missing  12701
+    ## 22       dest_geoXmicrotype_ATB_Missing  12701
+    ## 23           dest_geo2types_ATB_Missing  12701
+    ## 24     hh_microtypeXgeotype_ATB_Missing     47
+    ## 25               hh_geotype_ATB_Missing     47
+    ## 26       hh_microXgeo2types_ATB_Missing     47
+    ## 27             hh_microtype_ATB_Missing     47
+    ## 28         hh_geoXmicrotype_ATB_Missing     47
+    ## 29             hh_geo2types_ATB_Missing     47
+    ## 30                vehicleYN_ATB_Missing  12474
+    ## 31                 isSenior_ATB_Missing  12474
+    ## 32                  incHiLo_ATB_Missing  12474
+    ## 33               user_class_ATB_Missing      0
+    ## 34       distance_bin_class_ATB_Missing  13130
+    ## 35                       countN_Missing      0
+    ## 36          distance_bin_class_ATB_Ndis      9
+
+another way to look at some missings:
+
+``` r
+df_temp_full |> 
+  count(user_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+    ## # A tibble: 13 × 4
+    ##    user_class_ATB     rawdatafrom_tripct_ATB rawdatafrom_hhct_ATB      n
+    ##    <chr>                               <dbl>                <dbl>  <int>
+    ##  1 HiInc_NVeh_NSenior                      1                    1   3352
+    ##  2 HiInc_NVeh_YSenior                      1                    1    634
+    ##  3 HiInc_YVeh_NSenior                      1                    1 471444
+    ##  4 HiInc_YVeh_YSenior                      1                    1 132075
+    ##  5 LoInc_NVeh_NSenior                      1                    1  13480
+    ##  6 LoInc_NVeh_YSenior                      1                    1   5008
+    ##  7 LoInc_YVeh_NSenior                      1                    1 176506
+    ##  8 LoInc_YVeh_YSenior                      1                    1  96733
+    ##  9 NAInc_NVeh_NSenior                      1                    1    330
+    ## 10 NAInc_NVeh_YSenior                      1                    1    376
+    ## 11 NAInc_YVeh_NSenior                      1                    1  12041
+    ## 12 NAInc_YVeh_YSenior                      1                    1  11593
+    ## 13 Other                                  NA                    1  12474
+
+What if we look only at the ones that are from the trip data:
+
+``` r
+summary_table <- df_temp_full |> 
+  select(contains("_ATB")) |> 
+  group_by(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB) |> 
+  summarise(
+          countN = n(),
+          across(.cols=everything(), ~sum(is.na(.x)),.names = "{.col}_Missing"),
+            across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
+            , .groups = "drop") |> 
+  arrange(countN) 
+summary_table
+```
+
+    ## # A tibble: 2 × 36
+    ##   rawdatafrom_trippub_ATB rawdatafrom_tripct_ATB rawdatafrom_hhct_ATB countN
+    ##                     <dbl>                  <dbl>                <dbl>  <int>
+    ## 1                      NA                     NA                    1  12474
+    ## 2                       1                      1                    1 923572
+    ## # ℹ 32 more variables: mode_ATB_Missing <int>, trip_purpose_ATB_Missing <int>,
+    ## #   trip_purpose_small_ATB_Missing <int>, start_time_bin_ATB_Missing <int>,
+    ## #   orig_fips11_ATB_Missing <int>, dest_fips11_ATB_Missing <int>,
+    ## #   hh_fips11_ATB_Missing <int>, origin_microtypeXgeotype_ATB_Missing <int>,
+    ## #   origin_geotype_ATB_Missing <int>, origin_microXgeo2types_ATB_Missing <int>,
+    ## #   origin_microtype_ATB_Missing <int>, origin_geoXmicrotype_ATB_Missing <int>,
+    ## #   origin_geo2types_ATB_Missing <int>, …
+
+``` r
+summary_table %>% sjmisc::rotate_df(rn="V2 is obs with trips")
+```
+
+    ##                    V2 is obs with trips    V1     V2
+    ## 1               rawdatafrom_trippub_ATB    NA      1
+    ## 2                rawdatafrom_tripct_ATB    NA      1
+    ## 3                  rawdatafrom_hhct_ATB     1      1
+    ## 4                                countN 12474 923572
+    ## 5                      mode_ATB_Missing 12474      0
+    ## 6              trip_purpose_ATB_Missing 12474      0
+    ## 7        trip_purpose_small_ATB_Missing 12474      0
+    ## 8            start_time_bin_ATB_Missing 12474      0
+    ## 9               orig_fips11_ATB_Missing 12474      0
+    ## 10              dest_fips11_ATB_Missing 12474      0
+    ## 11                hh_fips11_ATB_Missing     0      0
+    ## 12 origin_microtypeXgeotype_ATB_Missing 12474    243
+    ## 13           origin_geotype_ATB_Missing 12474    243
+    ## 14   origin_microXgeo2types_ATB_Missing 12474    243
+    ## 15         origin_microtype_ATB_Missing 12474    243
+    ## 16     origin_geoXmicrotype_ATB_Missing 12474    243
+    ## 17         origin_geo2types_ATB_Missing 12474    243
+    ## 18   dest_microtypeXgeotype_ATB_Missing 12474    227
+    ## 19             dest_geotype_ATB_Missing 12474    227
+    ## 20     dest_microXgeo2types_ATB_Missing 12474    227
+    ## 21           dest_microtype_ATB_Missing 12474    227
+    ## 22       dest_geoXmicrotype_ATB_Missing 12474    227
+    ## 23           dest_geo2types_ATB_Missing 12474    227
+    ## 24     hh_microtypeXgeotype_ATB_Missing     1     46
+    ## 25               hh_geotype_ATB_Missing     1     46
+    ## 26       hh_microXgeo2types_ATB_Missing     1     46
+    ## 27             hh_microtype_ATB_Missing     1     46
+    ## 28         hh_geoXmicrotype_ATB_Missing     1     46
+    ## 29             hh_geo2types_ATB_Missing     1     46
+    ## 30                vehicleYN_ATB_Missing 12474      0
+    ## 31                 isSenior_ATB_Missing 12474      0
+    ## 32                  incHiLo_ATB_Missing 12474      0
+    ## 33               user_class_ATB_Missing     0      0
+    ## 34       distance_bin_class_ATB_Missing 12474    656
+    ## 35                       countN_Missing     0      0
+    ## 36          distance_bin_class_ATB_Ndis     1      9
+
 # Make smaller datasets
 
 ## Save with only trips
@@ -138,7 +426,27 @@ have any associated trips
 ``` r
 df_trips_only <- df_temp_full |> 
   filter(rawdatafrom_trippub_ATB==1,rawdatafrom_tripct_ATB==1,rawdatafrom_hhct_ATB==1)
+```
 
+Now number of observations
+
+``` r
+df_trips_only |> 
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+    ## # A tibble: 1 × 4
+    ##   rawdatafrom_trippub_ATB rawdatafrom_tripct_ATB rawdatafrom_hhct_ATB      n
+    ##                     <dbl>                  <dbl>                <dbl>  <int>
+    ## 1                       1                      1                    1 923572
+
+``` r
+df_trips_only <- ungroup(df_trips_only)
+```
+
+Save
+
+``` r
 write_parquet(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips.parquet"))
 write_rds(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips.rds"))
 write_csv(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips.csv"))
@@ -146,7 +454,7 @@ write_csv(df_trips_only,  file.path(data_results, "15-mode-choice-cleaning_outpu
 
 ## Save with fewer variables AND only trips
 
-This keeps only some variables
+This keeps only some variables that we’ll need for the analysis
 
 ``` r
 df_trips_only_small <- df_trips_only |> 
@@ -154,7 +462,7 @@ df_trips_only_small <- df_trips_only |>
   select(-contains("rawdatafrom"))
 ```
 
-Save with fewer variables
+Save
 
 ``` r
 write_parquet(df_trips_only_small,  file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars.parquet"))
@@ -234,16 +542,20 @@ write_csv(df_collapsed_wide,  file.path(data_results, "15-mode-choice-cleaning_o
 
 # Clean up and conclude
 
-## Remove temp10
+## Remove datasets
 
 ``` r
 rm(df_temp_full)
+rm(df_collapsed_wide)
+rm(df_collapsed)
+rm(df_trips_only)
+rm(df_trips_only_small)
 gc()
 ```
 
-    ##             used   (Mb) gc trigger   (Mb)  max used   (Mb)
-    ## Ncells   1383135   73.9    2593682  138.6   2593682  138.6
-    ## Vcells 141019157 1075.9  378487964 2887.7 286885277 2188.8
+    ##           used (Mb) gc trigger   (Mb)  max used   (Mb)
+    ## Ncells 1355912 72.5    2804474  149.8   2804474  149.8
+    ## Vcells 2444128 18.7  322227272 2458.4 335490331 2559.6
 
 ## Exit knittr
 
