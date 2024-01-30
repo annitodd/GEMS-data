@@ -73,27 +73,59 @@ order HiInc_YN
 *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 **#  Fractional-- play around look only at taxis 
 *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* I'm ordering it here by what I think is going to have a positive marginal 
-* effect (an increase in it results in increase in taxi) then negative, and
+* I'm ordering it here by what I think is going to have a negative marginal 
+* effect (an increase in it results in decrease in taxi) then positive, and
 * then the ones that could go either way, so that when we see the results we 
 * can see if they make sense or not
 
 // estimate logit (the first vars are ys, eta is the x vars)
-	fmlogit m_bike m_bus m_hv m_rail m_taxi m_walk, eta( 					 ///
-		cost_permile_taxi		wait_time_taxi			access_time_taxi
-		inv_time_permile_bike 	inv_time_permile_walk	inv_time_permile_hv	 ///	
-		inv_time_permile_rail 	inv_time_permile_taxi	inv_time_permile_bus ///
-		access_time_bus			access_time_rail			 ///
-		wait_time_bus			wait_time_rail					 ///
-		cost_permile_bus		cost_permile_hv			cost_permile_rail 	 ///	
-		 )
+	fmlogit m_bike m_bus m_hv m_rail m_taxi m_walk, eta( 					///
+	/* these maybe are negative marginal effects: */						///
+		cost_permile_taxi		wait_time_taxi			access_time_taxi	///
+		inv_time_permile_taxi												///
+	/* these maybe are positive marginal effects (substitutes): */			///
+		inv_time_permile_bike 	inv_time_permile_hv	 cost_permile_hv		///
+	/* these not sure could be subst or complements: */		 				///
+		inv_time_permile_rail	access_time_bus			access_time_rail	///
+		wait_time_bus			inv_time_permile_bus	cost_permile_rail	///
+		cost_permile_bus		inv_time_permile_walk	wait_time_rail		///
+	 )
 // now look at marginal effects. This generates predicted probabilities. The number in the dy/dx is the probability. 
 	margins, dydx(* ) predict(outcome(m_taxi))  
-	marginsplot, xdimension(_deriv) graphdimension() horizontal
-		
-		
-		
+	marginsplot, xdimension(_deriv) graphdimension() horizontal  recast(scatter)
 
+*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**#  Fractional WITH HETEROG -- ONLY few vars, ONLY taxi 
+*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* I'm decreasing the number of x vars because too many
+* I'm going to pick the ones that were high in the last version
+// estimate logit (the first vars are ys, eta is the x vars)
+	fmlogit m_bike m_bus m_hv m_rail m_taxi m_walk, eta( 					///
+		cost_permile_taxi	inv_time_permile_taxi	inv_time_permile_hv	 	///
+		cost_permile_hv		inv_time_permile_bus		cost_permile_bus	///
+		)
+	 margins, dydx(* ) predict(outcome(m_taxi))  
+// estimate logit (the first vars are ys, eta is the x vars)
+	fmlogit m_bike m_bus m_hv m_rail m_taxi m_walk, eta( 					///
+		i.HiInc_YN##c.cost_permile_taxi	i.HiInc_YN##c.inv_time_permile_taxi	i.HiInc_YN##c.inv_time_permile_hv	 	///
+		i.HiInc_YN##c.cost_permile_hv		i.HiInc_YN##c.inv_time_permile_bus		i.HiInc_YN##c.cost_permile_bus	///
+		)
+	margins i.HiInc_YN, dydx(* ) predict(outcome(m_taxi))  
+	marginsplot, xdimension(_deriv) plotdimension(HiInc_YN) graphdimension() horizontal recast(line)
+
+	
+	
+
+		
+// perhaps could use by, but then can't do margins right after so maybe pointless		
+	bysort HiInc_YN: fmlogit m_bike m_bus m_hv m_rail m_taxi m_walk, eta( 					///
+		cost_permile_taxi	inv_time_permile_taxi	inv_time_permile_hv	 	///
+		cost_permile_hv		inv_time_permile_bus		cost_permile_bus	///
+		) 
+		
+		
+		
+		
 	
 *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 **#  Statistical tests of logit
