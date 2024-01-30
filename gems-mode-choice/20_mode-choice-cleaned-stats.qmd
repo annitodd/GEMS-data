@@ -1,0 +1,579 @@
+---
+title: "Summary Stats"
+subtitle: "Annika created this code doc on 10/26/2023. Last compiled on `r Sys.Date()`"
+format: 
+  gfm:
+    toc: true
+    toc-depth: 4
+execute:
+  warning: false
+---
+
+## Description and Overview
+
+This code summarizes the dataset that is a result of this script: 10_mode-choice-cleaning
+
+GitHub: This .Rmd code (possibly qmd if I have to change it with the new update to R Studio) is synced to Github, and when this code is knit, it's also synced to GitHub, as a .md file, which makes the knitted code easy to read (kind of like python code.) Currently in a FORK: <https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice>
+
+### Latest Updates
+
+####DEC 6: the next step is to go back to the 10\_ code, and add income
+
+#### Dec 14: next step
+Is to create the dataset that replicates the one i've been talking to anna about in that excel sheet
+But FIRST make a mandatory vs non-mandatory
+
+another to-do is ALSO use the raw raw data in the folder that I found
+
+## Setup
+
+### libraries
+
+```{r}
+library(arrow)
+# library(readxl)
+# library(rstudioapi)
+library(scales)
+# library(writexl)
+library(sjmisc)
+library(fmlogit)
+library(tidyverse) # load this last
+```
+
+### file path directories
+
+```{r}
+# get current root directory of the user's Github repo
+root <- getwd() # Saves current WD 
+#while ((basename(root) != "GEMS-data")) {
+#  root <- dirname(root)
+#} # Sets root equal to the location of the Github repo
+#source(file.path(root, "paths.R")) # Runs paths.R file found in users Github repo
+```
+
+```{r}
+data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
+```
+
+## Open datasets
+open both the small dataset (trips only), and the wide dataset (widened)
+### open small
+```{r}
+df_trips_only_small <- read_parquet(file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars.parquet"))
+names(df_trips_only_small)
+```
+### open collapsed
+collapsed is the small dataset but it's collapsed by all of the types we want from the coe that ist "15.....Rmd"
+```{r}
+df_collapsed <- read_parquet(file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars-collapsed.parquet"))
+names(df_collapsed)
+```
+### open wide
+```{r}
+df_trips_only_wide <- read_parquet(file.path(data_results, "15-mode-choice-cleaning_output-merged-onlytrips-fewvars-wide.parquet"))
+names(df_trips_only_wide)
+```
+
+### Summarize variables
+
+#### number of distinct groups in each variable
+
+```{r}
+summary <- df_trips_only_small |>
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
+    .groups = "drop")
+summary %>% sjmisc::rotate_df(rn="N distinct")
+```
+#### list the distinct values for each var
+```{r}
+df_trips_only_small %>% 
+  distinct(origin_geoXmicrotype_ATB) 
+```
+
+```{r}
+df_trips_only_small %>% 
+  distinct(dest_geoXmicrotype_ATB) 
+```
+
+```{r}
+df_trips_only_small %>% 
+  distinct(hh_geoXmicrotype_ATB) 
+```
+
+```{r}
+df_trips_only_small %>% 
+  distinct(start_time_bin_ATB) 
+```
+
+```{r}
+df_trips_only_small %>% 
+  distinct(trip_purpose_ATB) 
+```
+
+#### combinations 
+
+
+distinct mode X trip purpose
+```{r}
+summary <- df_trips_only_small |>
+  group_by(mode_ATB,trip_purpose_ATB) %>% 
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
+    .groups = "drop")
+summary
+summary %>% sjmisc::rotate_df(rn="N distinct")
+```
+
+distinct origin destination
+```{r}
+df_trips_only_small %>% 
+  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  pivot_wider(names_from = dest_geoXmicrotype_ATB,values_from = n)
+```
+
+12/7 do only micro types not geo types
+```{r}
+ggplot() +
+  geom_count(data=df_trips_only_small,
+             mapping=aes(x = origin_microtypeXgeotype_ATB, y = dest_microtypeXgeotype_ATB)) +
+  scale_size_area(max_size = 10)
+```
+
+```{r}
+ggplot() +
+  geom_count(data=df_trips_only_small,
+             mapping=aes(x = origin_geoXmicrotype_ATB, y = dest_geoXmicrotype_ATB)) +
+  scale_size_area(max_size = 10)
+```
+
+
+```{r}
+df_trips_only_small %>% 
+  count(origin_microtypeXgeotype_ATB,dest_microtypeXgeotype_ATB) 
+df_trips_only_small %>% 
+  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  filter(n<100) %>% 
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 5)
+```
+
+
+```{r}
+temp_count <- df_trips_only_small %>% 
+  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB)
+
+ggplot() +
+  geom_tile(data=temp_count,
+            mapping=aes(x = origin_geoXmicrotype_ATB, 
+                        y = dest_geoXmicrotype_ATB,
+                        fill = log(n)))
+```
+
+```{r}
+ggplot() +
+  geom_tile(data=temp_count,
+            mapping=aes(x = origin_geoXmicrotype_ATB, 
+                        y = dest_geoXmicrotype_ATB,
+                        fill = log(n))) +
+  geom_point(data=temp_count %>% filter(n<8),
+            mapping=aes(x = origin_geoXmicrotype_ATB, 
+                        y = dest_geoXmicrotype_ATB,
+                        size = -n),
+            color = "red",
+            alpha = .5) 
+  
+```
+
+```{r}
+temp_count <- df_trips_only_small %>% 
+  count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB)
+
+ggplot() +
+  geom_tile(data=temp_count %>% filter(n<8),
+            mapping=aes(x = origin_geoXmicrotype_ATB, 
+                        y = dest_geoXmicrotype_ATB,
+                        fill = (n)))
+```
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_geoXmicrotype_ATB, 
+           y = dest_geoXmicrotype_ATB,
+           color = start_time_bin_ATB,
+           shape = trip_purpose_ATB)) +
+  geom_count()
+```
+
+```{r}
+summary <- df_trips_only_small |>
+  group_by(origin_geoXmicrotype_ATB) %>% 
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col} distinct"),
+    .groups = "drop")
+36*36
+summary
+summary %>% sjmisc::rotate_df(rn="N distinct")
+```
+How many geotypeX microtype
+```{r}
+summary <- df_trips_only_small |>
+  group_by(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col}"),
+    .groups = "drop")
+36*36
+summary
+summary %>% sjmisc::rotate_df(rn="N distinct")
+```
+
+```{r}
+# df_trips_only_small_wide <- df_trips_only_small  |>
+#   group_by(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>%
+#   summarise("Number Obs" = n(),
+#             across(contains("_ATB"),~n_distinct(.x),.names = "{.col}"),
+#     .groups = "drop")
+# df_trips_only_small_wide
+```
+
+#### How many have all 7 modes?
+```{r}
+df_trips_only_small |>
+  group_by(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) %>% 
+  summarise("Number Obs" = n(),
+            across(contains("_ATB"),~n_distinct(.x),.names = "{.col}"),
+            .groups = "drop") |> 
+  pivot_wider(
+    names_from = mode_ATB,
+    values_from = "Number Obs",
+    values_fn = sum
+  )
+```
+
+
+
+### make county level dataset
+
+```{r}
+# df_county_origin <- df_trips_only_small |>
+#   group_by(ORIG_ST,ORIG_CNTY) |>
+#   summarise(Ntrips = n(),
+#             across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+#     .groups = "drop")
+# df_county_origin
+```
+
+### make microXgeotype level dataset
+
+```{r}
+# df_microXgeotype <- df_trips_only_small |>
+#   group_by(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB) |>
+#   summarise(Ntrips = n(),
+#             across(contains("_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+#     .groups = "drop")
+# df_microXgeotype
+```
+
+## Histograms
+how many observations in each group? 
+
+```{r}
+df_collapsed |> 
+  filter(n<20) |>  
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 1)
+```
+
+#### histogram mode stacked
+```{r}
+df_collapsed |> 
+  filter(n<50) |>  
+  ggplot( aes(x = n, fill = mode_ATB)) +
+  geom_histogram(binwidth = 1)
+```
+#### histogram mode faceted
+```{r}
+df_collapsed |> 
+  filter(n<10) |>  
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 1) +
+  facet_wrap(vars(mode_ATB),nrow=2)
+```
+
+#### histogram mode lines
+```{r}
+df_collapsed |> 
+  filter(n<50) |>  
+  ggplot( aes(x = n, colour = mode_ATB)) +
+  geom_freqpoly(binwidth = 1)
+```
+
+#### look at the bins graph
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = dest_microXgeo2types_ATB)) +
+  geom_count()
+```
+
+
+
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = dest_microXgeo2types_ATB,
+           color = start_time_bin_ATB,
+           shape = trip_purpose_small_ATB)) +
+  geom_count()
+```
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = user_class_ATB,
+           color = start_time_bin_ATB,
+           shape = trip_purpose_small_ATB,
+           fill = distance_bin_class_ATB)) +
+  geom_count()
+```
+### histogram user class
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = user_class_ATB)) +
+  geom_count()
+```
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_destination__microtype_ATB, 
+           y = user_class_ATB)) +
+  geom_count()
+```
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_destination__microXgeo2types_ATB, 
+           y = user_class_ATB)) +
+  geom_count()
+```
+##### Sugg START 2024
+##### Suggestion: perhaps look at only Yes vehicle:
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small |> 
+         filter(vehicleYN_ATB == "OwnsVehicle"), 
+       aes(x = origin_destination__microXgeo2types_ATB, 
+           y = user_class_ATB)) +
+  geom_count()
+```
+Now combine user class with distance bin
+
+### histogram distance bin
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_microXgeo2types_ATB, 
+           y = distance_bin_class_ATB)) +
+  geom_count()
+```
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_destination__microtype_ATB, 
+           y = distance_bin_class_ATB)) +
+  geom_count()
+```
+
+
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_destination__microXgeo2types_ATB, 
+           y = distance_bin_class_ATB)) +
+  geom_count()
+```
+
+## Jan 2024: Narrow focus histogram
+The following graph is for All origin and destinations, by distance class bin.  Notice that the most observations are where the origin is the same as the destination -- which are the biggest circles on the lowest bin, bin 1, which is the shortest distance.  As the distance bins go up, then that means the person is driving farther away -- which means that the round bubbles become more scattered out the farther up the bins you go. 
+```{r}
+#| warning: false
+ggplot(df_trips_only_small, 
+       aes(x = origin_destination__microXgeo2types_ATB, 
+           y = distance_bin_class_ATB)) +
+  geom_count()
+```
+Next we want to narrow this down so that we can look at similar trips, and then try to see why people take them, like is it cost or wait timing or what. 
+
+So here I'll only keep observations in the dataset that are of a certain type. 
+
+#### filter to vehicle owners, 
+Perhaps, I'll start with only people who own their own vehicle  
+```{r}
+#| warning: false
+ggplot(df_trips_only_small |> 
+         filter(vehicleYN_ATB == "OwnsVehicle"), 
+       aes(x = origin_destination__microXgeo2types_ATB, 
+           y = distance_bin_class_ATB)) +
+  geom_count()
+ggplot(df_trips_only_small |> 
+         filter(vehicleYN_ATB != "OwnsVehicle"), 
+       aes(x = origin_destination__microXgeo2types_ATB, 
+           y = distance_bin_class_ATB)) +
+  geom_count()
+
+```
+
+
+
+## PRE 2024
+
+#### WHY? doesn't this work without count?
+```{r}
+
+df_trips_only_small %>% 
+  count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
+          trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
+          mode_ATB) %>% 
+  filter(n<20) %>% 
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 1)
+```
+
+```{r}
+
+df_collapsed <- df_trips_only_small |>
+    count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB,
+          trip_purpose_small_ATB,start_time_bin_ATB,user_class_ATB,distance_bin_class_ATB,
+          mode_ATB)
+
+df_collapsed |> 
+  count(origin_microXgeo2types_ATB,dest_microXgeo2types_ATB) %>% 
+  filter(n<100) %>% 
+  ggplot( aes(x = n)) +
+  geom_histogram(binwidth = 5)
+```
+
+
+### Wide microgeo by mode to get fractions (first get the sum)
+
+```{r}
+df_microXgeotype_wide <- df_trips_only_small |>
+    count(origin_geoXmicrotype_ATB,dest_geoXmicrotype_ATB,
+          trip_purpose_ATB,start_time_bin_ATB,
+          mode_ATB) %>% 
+   pivot_wider(
+    names_from = mode_ATB,
+    values_from = n
+  )
+df_microXgeotype_wide
+```
+
+### new dataset
+
+-   county
+-   user class (income variation) use xiaodan's
+-   trip purpose -- which may or may not. Mandatory versus non-mandatory. Work and School
+-   trip distance bin
+-   departure time bin
+
+Micro-geotype -- merge this into the dataset, and then use micro type. Break up by micro geo Replace county by microtype. There are 6 microtypes. Use Origin and destination microtypes -- could do that, then there would be
+
+Need to ask Xiaodan to how to merge microtype and geo type IDs to FIPS blocks.
+
+Then Combinatorials of
+
+## Summary stats by coumty
+
+### basic
+
+how many trips in each state
+
+```{r}
+summary_table <- df_trips_only |> 
+  group_by(ORIG_ST) |>
+  summarise(   
+    Ntrips = n(),
+    .groups = "drop")
+summary_table
+```
+
+how many trips for each mode
+
+```{r}
+summary_table <- df_trips_only |> 
+  group_by(mode_ATB) |>
+  summarise(   
+    Ntrips = n(),
+    .groups = "drop") |>
+  arrange(-Ntrips)   
+summary_table
+```
+
+### by county
+
+how many trips in each county
+
+```{r}
+# ggplot(df_county_origin,aes(x=Ntrips)) +
+#   geom_histogram(binwidth=1) +
+#   coord_cartesian(xlim = c(0, 50))
+```
+
+### by mode type by
+
+```{r}
+# ggplot(df_county_origin,aes(x=mode_Ndis)) +
+#   geom_histogram(binwidth=1) 
+# #  coord_cartesian(xlim = c(0, 50))
+```
+
+### by purpose
+
+```{r}
+# df_county_origin <- df_trips_only_small |>
+#   group_by(mode_ATB,trip_purpose_ATB) |>
+#   summarise(Ntrips = n(),
+#             #across(contains("mode_ATB"),~n_distinct(.x),.names = "{.col}_Ndis"),
+#     .groups = "drop")
+# #df_county_origin
+# df_county_origin
+```
+
+      across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
+        across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
+
+## Make new proportional dataset
+
+### by microXgeotype
+
+```{r}
+# ggplot(df_county_origin,aes(x=Ntrips)) +
+#   geom_histogram(binwidth=1) +
+#   coord_cartesian(xlim = c(0, 50))
+```
+
+## fractional split logit
+
+### methodology
+
+The R package is here, I think it's mostly based on the stata package: https://github.com/f1kidd/fmlogit
+
+It looks like there is no need to include information about how the proportions within each observation were obtained, like how many people or whatever were used to make the proportions, see this from the seminal paper:
+
+Papke, Leslie E., and Jeffrey M. Wooldridge. "Econometric Methods for Fractional Response Variables With an Application to 401 (K) Plan Participation Rates." *Journal of Applied Econometrics*, vol. 11, no. 6, 1996, pp. 619--32. *JSTOR*, http://www.jstor.org/stable/2285155. Accessed 29 Nov. 2023.
+
+![](images/fractional_split_woolridge_2.png){width="465"}
+
+This is an [example](https://www.sciencedirect.com/science/article/abs/pii/S0001457517304049) of a fractional split logit using the fraction of crashes in each TAZ as the y var, and the x vars are descriptors of the TAZ also in proportions. Lee J, Yasmin S, Eluru N, Abdel-Aty M, Cai Q. Analysis of crash proportion by vehicle type at traffic analysis zone level: A mixed fractional split multinomial logit modeling approach with spatial effects. Accid Anal Prev. 2018 Feb;111:12-22. doi: 10.1016/j.aap.2017.11.017. Epub 2017 Nov 20. PMID: 29161538.

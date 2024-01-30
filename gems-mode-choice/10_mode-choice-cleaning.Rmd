@@ -1,31 +1,25 @@
 ---
 date: "Annika created this code doc on 10/21/2023. Last compiled on `r Sys.Date()`"
 output:
-  github_document:
-    df_print: kable
-    toc: TRUE
-    toc_depth: 1
+  github_document
+editor_options: 
+  chunk_output_type: inline
 ---
-
-# Description
-
-This code opens raw datasets from NHTS data in 2017, cleans them, possibly merges them, gives super basic summary tables of new stats that are a result of the new vars, and then saves as new datasets. Another code will then use the cleaned dataset from here to make more fancy summary stats.
-
-Data Dictionary: I'm taking the results from this code, and also putting it into the GEMS master data dictionary. They are in NEW TABs including "clean_mode_choice_data_ATB" and other tabs: <https://docs.google.com/spreadsheets/d/1RVxqALDAE1u4SC569Cq373_fafaE1nZiZBJJMiRTYu8/edit?usp=sharing>
-
-GitHub: This .Rmd code (possibly qmd if I have to change it with the new update to R Studio) is synced to Github, and when this code is knit, it's also synced to GitHub, as a .md file, which makes the knitted code easy to read (kind of like python code.) Currently in a FORK: <https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice/10_mode-choice-cleaning.md>
-
 # Setup
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE) 
 ```
 
+```{r}
+#rm(list=ls()) # Clear RStudio environment
+#cat("\014") # Clear console
+```
+
 ## libraries
 
 ```{r}
-rm(list=ls()) # Clear RStudio environment
-cat("\014") # Clear console
+library(arrow)
 library(tidyverse)
 library(readxl)
 library(rstudioapi)
@@ -46,40 +40,82 @@ source(file.path(root, "paths.R")) # Runs paths.R file found in users Github rep
 
 ```{r}
 data_path <- 'C:/FHWA/For FHWA folks/Mode_choice_estimation/Data'
+data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
 ```
 
-# DATA - Open and Clean
+# Description and Overview
 
-## Raw data
+This code opens raw datasets from NHTS data in 2017, cleans them, possibly merges them, gives super basic summary tables of new stats that are a result of the new vars, and then saves as new datasets. Another code will then use the cleaned dataset from here to make more fancy summary stats.
 
-These data sets are from the NHST 2017 survey. Documentation is [here](https://nhts.ornl.gov/documentation), with useful [user's guide](https://nhts.ornl.gov/assets/NHTS2017_UsersGuide_04232019_1.pdf), and [codebook](https://nhts.ornl.gov/assets/codebook_v1.2.pdf), and very simple [data dictionary](https://nhts.ornl.gov/assets/dictionary_v1_2.xlsx) that is also saved in Github here.
+These data sets are from the NHST 2017 survey. Documentation is [here](https://nhts.ornl.gov/documentation), with useful [user's guide](https://nhts.ornl.gov/assets/NHTS2017_UsersGuide_04232019_1.pdf), and [codebook](https://nhts.ornl.gov/assets/codebook_v1.2.pdf), and very simple [data dictionary](https://nhts.ornl.gov/assets/dictionary_v1_2.xlsx) that is also saved in Github [here](https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice/dictionary_v1_2.csv).
+
+Data Dictionary: I'm taking the results from this code, and also putting it into the GEMS master data dictionary. They are in NEW TABs including "clean_mode_choice_data_ATB" and other tabs: <https://docs.google.com/spreadsheets/d/1RVxqALDAE1u4SC569Cq373_fafaE1nZiZBJJMiRTYu8/edit?usp=sharing>
+
+GitHub: This .Rmd code (possibly qmd if I have to change it with the new update to R Studio) is synced to Github, and when this code is knit, it's also synced to GitHub, as a .md file, which makes the knitted code easy to read (kind of like python code.) Currently in a FORK: <https://github.com/annitodd/GEMS-data/blob/main/gems-mode-choice/10_mode-choice-cleaning.md>
+
+## Datasets Description
+
+-   trippub: each row is household-person-trip, without geo IDs, with lots of descriptions of the trips. It's public dataset.
+
+-   tripsct: each row is a household-person-trip, with only geo IDs for *each* trip, like, trip origin geoID and trip destination geoID. The geo IDs are: 2 didget state code, county code, and 6 didget tract code.
+
+-   hhct.csv: each row is a household, with a geo ID for the household.
 
 Data file structure screen shot:
 
-![](pngs/NHST_data_file_structure.png){width="680"}
+![](pngs/NHTS_Schematic.png){width="180"}
 
--   trippub: each row is household-person-trip, without geo IDs, with lots of descriptions of the trips. It's public dataset.
--   tripsct: each row is a household-person-trip, with only geo IDs for *each* trip, like, trip origin geoID and trip destination geoID. The geo IDs are: 2 didget state code, county code, and 6 didget tract code.
--   hhct.csv: each row is a household, with a geo ID for the household.
+![](pngs/NHTS_Summary_of_content.png){width="100"}
 
-## Dataset: Person-Trips (trippub)
+![](pngs/NHST_data_file_structure.png){width="180",height="344"}
+
+
+## List of variables and descriptions
+
+This is the data dictionary from NHTS:
+
+```{r}
+dictionary_v1_2 <- read_csv("dictionary_v1_2.csv") %>% 
+  relocate ("Label","Name")
+dictionary_v1_2 
+```
+
+## FIPS and geotype Descriptions
+
+-   Fips codes -- state 2 characters, county 3 characters, census tract 6 characters
+-   fips11_ATB is an a amalgamation -- make these three things into one id, using best practices, here: <https://www.census.gov/programs-surveys/geography/guidance/geo-identifiers.html>,
+-   fips11_ATB is created by concatenating them, not by multiplying
+
+## steps in this code
+
+Open datasets, clean merge datasets save resulting datasets \## result merged dataset, full joined: 10-mode-choice-cleaning_output-full-merged.parquet smaller dataset with fewer vars: (TBD)
+
+Merge tripspub to ctTripspub, maybe merge to ct. Need to merge to county. Take the raw trips, have the county / fips codes, then look at how many trips by county do we have per trips tract IDs, then the microgeotypes -- crosswalk of tract to geotype
+
+
+# DATA - Open and Clean
+
+## Dataset - trippub: Person-Trips
 
 This has all of the trip information for every trip a household took in the survey, each row is a trip for each person that answered the survey
 
-```{r load, cache=TRUE}
-trippub <- read_csv(file=file.path(data_path, 'trippub.csv'))
-names(trippub)
-saveRDS(trippub, "df_trips.rds")
-rm(trippub)
+```{r}
+df_trippub <- read_csv(file=file.path(data_path, 'trippub.csv'))
+names(df_trippub)
+#saveRDS(trippub, "df_trippub.rds")
+#rm(trippub)
+# View(df_trippub)
+names(df_trippub)
 ```
+
+### create var: key and ID vars
 
 ```{r}
-df_trips <- readRDS("df_trips.rds")
-View(df_trips)
-names(df_trips)
+df_trippub <- df_trippub  %>%
+  mutate(rawdatafrom_trippub_ATB = 1)
 ```
 
-### define modes
+### create var: modes
 
 Uses TRPTRANS from NHTS
 
@@ -88,53 +124,42 @@ First I'm going to create smaller bins of modes because there are too many, ther
 ![](pngs/TRPTRANS_dictionary.png)
 
 ```{r}
-df_trips <- df_trips  %>%
-  mutate(mode = 
+df_trippub <- df_trippub  %>%
+  mutate(mode_ATB = 
       case_when(TRPTRANS %in% c("01") ~ 'walk',
                 TRPTRANS %in% c("02") ~ 'bike',
                 TRPTRANS %in% c(10,11,12,13,14) ~ 'bus', 
                 TRPTRANS %in% c(15, 16)~ 'rail',
                 TRPTRANS %in% c(17) ~ 'taxi',
-      # CONTESTING:
-                  TRPTRANS %in% c("03","04","05","06",          "09","18") ~ 'hv', 
-                # TRPTRANS %in% c("03","04","05","06",     "08") ~ 'personal vehicle', # PROPOSED
-                # TRPTRANS %in% c(18) ~ 'rental', # PROPOSED
-                  TRPTRANS %in% c(                    "07","08") ~ 'scooter', 
-                # 09 is RV (motor home, ATV, snowmobile)
-                # 18 is rental car
-                # 08 is motorcycle / moped
-                # 07 is golf cart / segway
-                # TRPTRANS %in% c(19) ~ 'something else', # PROPOSED
+                TRPTRANS %in% c("03","04","05","06","08","09","18") ~ 'hv', 
                 TRUE ~ "other")
       )
-
-
-summary <- df_trips |>
-    group_by(TRPTRANS, mode) |>
+summary <- df_trippub |>
+    group_by(TRPTRANS, mode_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
   arrange(TRPTRANS)   
 summary
 ```
 
 ```{r}
-summary <- df_trips |>
-    group_by(mode) |>
+summary <- df_trippub |>
+    group_by(mode_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
   arrange(-countN)   
 summary
 ```
 
-### define trip purpose
+### create var: trip purpose
 
-trip_purpose generated from NHTS field 'whytrp1s' ![](pngs/WHYTRP1S_dictionary.png)
+trip_purpose_ATB generated from NHTS field 'whytrp1s' ![](pngs/WHYTRP1S_dictionary.png)
 
 ```{r}
-df_trips <- df_trips  %>%
-  mutate(trip_purpose = 
+df_trippub <- df_trippub  %>%
+  mutate(trip_purpose_ATB = 
       case_when(WHYTRP1S %in% c("01") ~ 'home',
                 WHYTRP1S %in% c("10") ~ 'work',
                 WHYTRP1S %in% c("20") ~ 'school',
@@ -145,316 +170,793 @@ df_trips <- df_trips  %>%
                 WHYTRP1S %in% c("80") ~ 'meals',
                 TRUE ~ "other")
       )
-summary <- df_trips |>
-    group_by(WHYTRP1S, trip_purpose) |>
+df_trippub <- df_trippub  %>%
+  mutate(trip_purpose_small_ATB = 
+      case_when(WHYTRP1S %in% c("01") ~ 'home',
+                WHYTRP1S %in% c("10","20") ~ 'work_school',
+                WHYTRP1S %in% c("30","40","50","70","80") ~ 'other',
+                TRUE ~ "other")
+      )
+summary <- df_trippub |>
+    group_by(WHYTRP1S, trip_purpose_ATB) |>
   summarise(countN = n() ,
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
   arrange(WHYTRP1S)   
 summary
+summary <- df_trippub |>
+    group_by(trip_purpose_ATB, trip_purpose_small_ATB) |>
+  summarise(countN = n() ,
+            Nmissing = sum(is.na(mode_ATB)),
+    .groups = "drop") |> 
+  arrange(trip_purpose_small_ATB)   
+summary
 ```
 
-### define time bins
+### create var: time bins
 
-trip_purpose generated from NHTS field 'STRTTIME' ![](pngs/STRTTIME_dictionary.png)
+trip_purpose_ATB generated from NHTS field 'STRTTIME' ![](pngs/STRTTIME_dictionary.png)
 
 ```{r}
 # convert to numeric
-df_trips <- df_trips  %>%
+df_trippub <- df_trippub  %>%
   mutate(STRTTIME_num = as.numeric(STRTTIME))
 ```
 
 ```{r}
-df_trips <- df_trips  %>%
-  mutate(start_time_bin = 
+df_trippub <- df_trippub  %>%
+  mutate(start_time_bin_ATB = 
       case_when(STRTTIME_num <=  600 ~ 'morning_rush',
                 STRTTIME_num >= 1600 ~ 'evening_rush',
                 is.na(STRTTIME_num)  ~ 'missing time',
                 TRUE ~ "other_time")
       )
-summary <- df_trips |>
-    group_by(start_time_bin) |>
+summary <- df_trippub |>
+    group_by(start_time_bin_ATB) |>
   summarise(countN = n() ,
             "Min start time" = min(STRTTIME_num),
             "Max start time" = max(STRTTIME_num),
-            Nmissing = sum(is.na(mode)),
+            Nmissing = sum(is.na(mode_ATB)),
     .groups = "drop") |> 
-  arrange(start_time_bin)   
+  arrange(start_time_bin_ATB)   
 summary
 ```
 
-## Dataset - tripsct: County-Tract Crosswalk
+## Dataset - tripsct: County-Tract Crosswalk for trips
 
-Read in tripsct because it has the county fips codes and census tract to crosswalk
+tripsct: each row is a household-person-trip, with only geo IDs for *each* trip, like, trip origin geoID and trip destination geoID.
+
+-   The geo IDs are: 2 digit state code, county code, and 6 digit tract code.
+
+Read in tripsct because it has the county fips codes and census tract to crosswalk. it is possibly the raw trip with od -- only has tract trip path with distance
+
+```{r}
+df_tripct <- read_csv(file=file.path(data_path, 'tripct.csv'))
+names(df_tripct)
+```
+
+### create key and ID vars
+
+variable to show where the data is from
+
+```{r}
+df_tripct <- df_tripct  %>%
+  mutate(rawdatafrom_tripct_ATB = 1)
+```
+
+Concatenate geo IDs so that there is an 11 diget fips variable, the state ST, county CNTY, and census tract CT
+
+```{r}
+df_tripct <- df_tripct  %>% 
+  unite(orig_fips11_ATB, c("ORIG_ST","ORIG_CNTY","ORIG_CT"),sep="_",remove = FALSE)
+df_tripct <- df_tripct  %>% 
+  unite(dest_fips11_ATB, c("DEST_ST","DEST_CNTY","DEST_CT"),sep="_",remove = FALSE)
+```
 
 ## Dataset - hhct.csv: Household GEOIDs
 
+hhct is restricted data. maps households to where the households are located.
+
+-   hhct.csv: each row is a household, with a geo ID for the household.
+-   geo IDs are
+
 ```{r}
-# Houshold GEOIDs?
+df_hhct <- read_csv(file=file.path(data_path, 'hhct.csv'))
+names(df_hhct)
+```
+
+### create key and ID vars
+
+```{r}
+df_hhct <- df_hhct  %>%
+  mutate(rawdatafrom_hhct_ATB = 1)
+```
+
+Concatenate geo IDs so that there is an 11 diget fips variable, the state ST, county CNTY, and census tract CT, for the household
+
+```{r}
+df_hhct <- df_hhct  %>% 
+  unite(hh_fips11_ATB, c("HHSTFIPS","HHCNTYFP","HHCT"),sep="_",remove = FALSE)
+```
+
+## Dataset - geo ID
+
+with imputation, from Xiaodan: Please find the geospatial cluster and crosswalk file all in one place from Phase 1 of the GEMS project. It is based on the census 2010 boundary, which is aligned with NHTS geospatial resolutions. The imputation indicators mean the micro-geotype IDs are not generated in the original clustering analysis due to data quality/missing issues but are added through post-processing. We can use those imputation values, and totally fine to use those as non-imputed values. Anna: Yeah, the "with imputation" means all the tracts are assigned a type. This is what you should be using for now Annika.
+
+-   fips_st : 2 digit state code, cty fips county code, and presumably tract code?
+
++---------------+-------------------------------------------------+
+| FID           | CCTSM ID                                        |
++---------------+-------------------------------------------------+
+| GEOID         | Census tract ID                                 |
++---------------+-------------------------------------------------+
+| MicrotypeID   | Micro-geotype ID by census tract                |
++---------------+-------------------------------------------------+
+| microtype     | Microtype ID by census tract                    |
++---------------+-------------------------------------------------+
+| microtype_imp | If microtype ID is imputed using KNN method     |
++---------------+-------------------------------------------------+
+| fips_st       | State FIPs code                                 |
++---------------+-------------------------------------------------+
+| st_code       | State abbreviation                              |
++---------------+-------------------------------------------------+
+| state         | State full name                                 |
++---------------+-------------------------------------------------+
+| cty           | County FIPS code                                |
++---------------+-------------------------------------------------+
+| ctyname       | County name                                     |
++---------------+-------------------------------------------------+
+| cbsa          | Census Core-Based Statistical Areas (CBSA) code |
++---------------+-------------------------------------------------+
+| cbsaname      | Census Core-Based Statistical Areas (CBSA) name |
++---------------+-------------------------------------------------+
+| spatial_id    | Spatial ID for geotype label,\                  |
+|               | spatial_id = CBSA code if CBSA != 99999,\       |
+|               | spatial_id = county FIPS code if CBSA == 99999  |
++---------------+-------------------------------------------------+
+| geotype       | Geotype ID by census tract                      |
++---------------+-------------------------------------------------+
+| geotype_imp   | If Geotype ID is imputed using KNN method       |
++---------------+-------------------------------------------------+
+
+```{r}
+df_geoID <- read_csv(file=file.path(data_results, 'raw/ccst_geoid_key_transp_geo_with_imputation.csv'),trim_ws = FALSE, guess_max = Inf)
+names(df_geoID)
+```
+
+### create key and ID vars (fips11_ATB)
+
+```{r}
+df_geoID <- df_geoID  %>%
+  mutate(rawdatafrom_geoID = 1)
+```
+
+Create fips state that's a string not a number and is separated into different vars
+First, take the variable GEOID, separate it into state county tract -- Second, then re-combine it so that it is a string that is separated by and underscore, in order to make the variable fips11_ATB
 
 
-#df <- read.csv(file = file.path(datadir, "hhct.csv" ))  # household, trip ct.csv -- resticted 
+```{r}
+df_geoID <- df_geoID  %>%
+  separate_wider_position(GEOID,c(fipsstate=2,fipscounty=3,censustract=6),cols_remove = FALSE)
 
-#
+df_geoID <- df_geoID  %>% 
+  unite(fips11_ATB, c("fipsstate","fipscounty","censustract"),sep="_",remove = FALSE)
+```
 
+# DATA - Merge
+
+Examine the unique primary keys to make sure they're unique. These should have 0 observations, meaning that these uniquely identify the observations:
+
+```{r}
+df_trippub |>  
+  summarise(n = n())
+df_trippub |>  
+  group_by(HOUSEID,PERSONID,TDTRPNUM) |>  
+  summarise(n = n()) |>  
+  filter(n > 1)
+df_tripct |>  
+  summarise(n = n()) 
+df_tripct |>  
+  group_by(HOUSEID,PERSONID,TDTRPNUM) |>  
+  summarise(n = n()) |>  
+  filter(n > 1)
+df_hhct |>  
+  summarise(n = n()) 
+df_hhct |>  
+  group_by(HOUSEID) |>  
+  summarise(n = n()) |>  
+  filter(n > 1)
+```
+
+Looks like GeoID has two GEO IDs that are not unique? Remove one.
+
+```{r}
+# count the number of geo IDs
+df_geoID |>
+  summarise(n = n())
+# count duplicates of geo IDs
+df_geoID |>
+  group_by(GEOID) |>
+  summarise(n = n()) |>  
+  filter(n > 1)
+df_geoID |>
+  filter(GEOID=="36103159406")
+df_geoID <- df_geoID %>% 
+  filter((GEOID!="36103159406" | FID!=3030))
+```
+
+This will tell us the relationship between the files. It looks like hhct has more observations of households than trippub has households:
+
+```{r}
+# same unique?
+df_trippub |>
+  group_by(HOUSEID) |> 
+  summarise(n = n(),
+            n_distinct(HOUSEID))
+```
+
+## Merge trippub to tripct
+
+This looks like it works perfectly -- as it should:
+
+```{r}
+df_temp1 <- full_join(df_trippub,df_tripct,
+                     by=c("HOUSEID","PERSONID","TDTRPNUM"))
+df_temp1
+```
+
+## Merge that to hhct with full join
+
+```{r}
+df_temp2 <- full_join(df_temp1,df_hhct,
+                     by=c("HOUSEID"))
+df_temp2
+```
+
+### missing
+
+looks like they don't equally merge, as we saw before (hhct has more households on file)
+
+```{r}
+df_temp2 |>
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+
+```
+
+## Merge in geotypes
+
+For this, we use the crosswalk that matches fips codes with the microtypes and geotypes. We want to match the locations for three things: -
+
+-   origin location
+-   destination location
+-   household location
+
+The way I do this is by first, creating a new copy of the crosswalk for each of those things. Then, merge.
+
+### for origin
+
+#### create copy of crosswalk dataset
+
+```{r}
+df_geoID_origin <- df_geoID
+```
+
+make geoXmicrotype
+
+```{r}
+df_geoID_origin <- df_geoID_origin %>% 
+  select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
+  rename(origin_geotype_ATB = geotype,
+         origin_microtype_ATB = microtype,
+         origin_geoXmicrotype_ATB = MicrotypeID)
+```
+
+create micro X geo, in addition to geo X micro
+
+```{r}
+df_geoID_origin <- df_geoID_origin %>% 
+  unite(origin_microtypeXgeotype_ATB,
+        c("origin_microtype_ATB","origin_geotype_ATB"),
+        sep="_",remove = FALSE)
+```
+
+create origin_geo2types, which is geotypes that are only 2 categories, one for urban (A and B), and one for rural (CDEF)
+
+```{r}
+df_geoID_origin <- df_geoID_origin %>% 
+  mutate(origin_geo2types_ATB = 
+      case_when(origin_geotype_ATB %in% c("A","B") ~ 'AB',
+                origin_geotype_ATB %in% c("C","D","E","F","G") ~ 'CDEF',
+                TRUE ~ "other")
+      )
+summary <- df_geoID_origin |>
+    group_by(origin_geotype_ATB, origin_geo2types_ATB) |>
+  summarise(countN = n() ,
+            Nmissing = sum(is.na(origin_geo2types_ATB)),
+    .groups = "drop") |> 
+  arrange(origin_geo2types_ATB)   
+summary
+```
+
+create micro X origin_geo2types, in addition to geo X micro
+
+```{r}
+df_geoID_origin <- df_geoID_origin %>% 
+  unite(origin_microXgeo2types_ATB,
+        c("origin_microtype_ATB","origin_geo2types_ATB"),
+        sep="_",remove = FALSE)
+```
+
+#### merge
+
+```{r}
+df_temp3 <- left_join(df_temp2,df_geoID_origin,
+                      by = join_by("orig_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
+```
+
+### for destination
+
+#### create copy (same as for origin)
+
+```{r}
+df_geoID_dest <- df_geoID %>% 
+  select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
+  rename(dest_geotype_ATB = geotype,
+         dest_microtype_ATB = microtype,
+         dest_geoXmicrotype_ATB = MicrotypeID) 
+```
+
+create micro X geo, in addition to geo X micro
+
+```{r}
+df_geoID_dest <- df_geoID_dest %>% 
+  unite(dest_microtypeXgeotype_ATB,c("dest_microtype_ATB","dest_geotype_ATB"),sep="_",remove = FALSE)
+
+```
+
+create dest_geo2types, which is geotypes that are only 2 categories, one for urban (A and B), and one for rural (CDEF)
+
+```{r}
+df_geoID_dest <- df_geoID_dest %>% 
+  mutate(dest_geo2types_ATB = 
+      case_when(dest_geotype_ATB %in% c("A","B") ~ 'AB',
+                dest_geotype_ATB %in% c("C","D","E","F","G") ~ 'CDEF',
+                TRUE ~ "other")
+      )  
+summary
+```
+create micro X dest_geo2types, in addition to geo X micro
+
+```{r}
+df_geoID_dest <- df_geoID_dest %>% 
+  unite(dest_microXgeo2types_ATB,
+        c("dest_microtype_ATB","dest_geo2types_ATB"),
+        sep="_",remove = FALSE)
+```
+
+#### merge
+
+```{r}
+df_temp4 <- left_join(df_temp3,df_geoID_dest,
+                      by = join_by("dest_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
+```
+
+### for household location
+
+#### create copy (same as for origin)
+
+```{r}
+df_geoID_hh <- df_geoID %>% 
+  select(fips11_ATB, geotype,microtype,MicrotypeID) %>% 
+  rename(hh_geotype_ATB = geotype,
+         hh_microtype_ATB = microtype,
+         hh_geoXmicrotype_ATB = MicrotypeID) 
+```
+
+create micro X geo, in addition to geo X micro
+
+```{r}
+df_geoID_hh <- df_geoID_hh %>% 
+  unite(hh_microtypeXgeotype_ATB,c("hh_microtype_ATB","hh_geotype_ATB"),sep="_",remove = FALSE)
+
+```
+
+create hh_geo2types, which is geotypes that are only 2 categories, one for urban (A and B), and one for rural (CDEF)
+
+```{r}
+df_geoID_hh <- df_geoID_hh %>% 
+  mutate(hh_geo2types_ATB = 
+      case_when(hh_geotype_ATB %in% c("A","B") ~ 'AB',
+                hh_geotype_ATB %in% c("C","D","E","F","G") ~ 'CDEF',
+                TRUE ~ "other")
+      )  
+summary
+```
+
+create micro X hh_geo2types, in addition to geo X micro
+
+```{r}
+df_geoID_hh <- df_geoID_hh %>% 
+  unite(hh_microXgeo2types_ATB,
+        c("hh_microtype_ATB","hh_geo2types_ATB"),
+        sep="_",remove = FALSE)
+```
+
+#### merge
+
+```{r}
+df_temp5 <- left_join(df_temp4,df_geoID_hh,
+                      by = join_by("hh_fips11_ATB" == "fips11_ATB"),`keep = TRUE` )
+```
+
+# DATA - Create new vars
+
+## remove unused temporary datasets,
+
+and Use the dataset from the merge:
+
+```{r}
+df_temp9 <- df_temp5
+rm(df_temp1)
+rm(df_temp2)
+rm(df_temp3)
+rm(df_temp4)
+gc()
+```
+
+## Create var: user class
+
+From Xiaodan: Hi Annika, The user class in V1 GEMS work is defined as follows: Population group derived from NHTS variables (income-HHFAMINC, vehicle - HHVEHCNT, age - R_AGE_IMP):
+
+-   LowIncNoVeh- household income below 50k, no vehicles in household, person age below 65
+
+-   HighIncVeh - household income above 50k, with vehicles in household, person age below 65
+
+-   LowIncVeh - household income below 50k, with vehicles in household, person age below 65
+
+-   HighIncNoVeh-household income above 50k, no vehicles in household, person age below 65
+
+-   HighIncVehSenior - household income above 50k, with vehicles in household, person age above 65
+
+-   LowIncVehSenior - household income below 50k, with vehicles in household, person age above 65
+
+-   HighIncNoVehSenior-household income above 50k, no vehicles in household, person age above 65
+
+-   LowIncNoVehSenior -household income below 50k, no vehicles in household, person age above 65
+
+age: I used 65 OR OLDER
+
+The OLD script THAT NATALIE WROTE of NHTS user class generation is here. The output is attached (only with publicly available attributes). <https://github.com/LBNL-UCB-STI/GEMS-data/blob/demand_data/demand/0_nhts_user_classes_nov2021.R>
+
+*User Classes* another need to have definitions of user classes income, age, vehicle ownership -- do we want to keep that definition? Use this to look at definitions -- but don't merge with it bc maybe it excluded some trips: nhts_user_classes_inc_veh_sr.csv 264234 "C:\FHWA\For FHWA folks\CleanData\NHTS" Xiaodan
+
+First examine the three variables\
+
+### create hh_vehicleYN_ATB
+
+```{r}
+df_temp9 %>%
+  group_by(HHVEHCNT) %>%
+  summarise(n = n())
+```
+
+```{r}
+df_temp9 <- df_temp9 %>% 
+  mutate(vehicleYN_ATB = case_when(
+    HHVEHCNT == 0 ~ "NoVehicle",
+    HHVEHCNT >  0 ~ "OwnsVehicle"
+  )
+         )
+df_temp9 %>%
+  group_by(vehicleYN_ATB) %>%
+  summarise(n = n())
+```
+
+### create Senior
+
+```{r}
+df_temp9 %>%
+  group_by(R_AGE_IMP) %>%
+  summarise(n = n())
+```
+
+```{r}
+df_temp9 <- df_temp9 %>% 
+  mutate(isSenior_ATB = case_when(
+    R_AGE_IMP >= 65 ~ "IsSenior",
+    R_AGE_IMP <  65 ~ "NotSenior"
+  )
+         )
+df_temp9 %>%
+  group_by(isSenior_ATB) %>%
+  summarise(n = n())
+```
+
+### create household income
+
+HHFAMINC Household income bin
+
+-   #-9=Not ascertained
+-   #-8=I don't know
+-   #-7=I prefer not to answer
+-   #01=Less than \$10,000
+-   #02=\$10,000 to \$14,999
+-   #03=\$15,000 to \$24,999
+-   #04=\$25,000 to \$34,999
+-   #05=\$35,000 to \$49,999
+-   #06=\$50,000 to \$74,999
+-   #07=\$75,000 to \$99,999
+-   #08=\$100,000 to \$124,999
+-   #09=\$125,000 to \$149,999
+-   #10=\$150,000 to \$199,999
+-   #11=\$200,000 or more
+
+```{r}
+df_temp9 %>%
+  group_by(HHFAMINC) %>%
+  summarise(n = n())
+```
+
+```{r}
+df_temp9 <- df_temp9 %>% 
+  mutate(incHiLo_ATB = case_when(
+    HHFAMINC %in% c("01","02","03","04","05") ~ "hhIncLow",
+    HHFAMINC %in% c("06","07","08","09","10","11","12") ~ "hhIncHigh",
+    HHFAMINC %in% c("-9","-8","-7") ~ "hhIncNoAnswer"
+    
+  )
+         )
+df_temp9 %>%
+  group_by(incHiLo_ATB) %>%
+  summarise(n = n())
+```
+
+### where are the missing values?
+
+And are they the same people that are missing trips? In the survey response but missing trip data:
+
+```{r}
+df_temp9 |> 
+  count(rawdatafrom_trippub_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+It looks like the missing values are from the non-trip survey part, but also, there were a lot of people who didn't answer:
+
+```{r}
+df_temp9 |> 
+  count(incHiLo_ATB,vehicleYN_ATB,isSenior_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
+
+### create user class combo of these 3
+
+```{r}
+library(dplyr)
+
+df_temp9 <- df_temp9 %>%
+  mutate(
+    user_class_ATB = case_when(
+      HHFAMINC %in% c("01","02","03","04","05") & 
+        HHVEHCNT == 0 & R_AGE_IMP <  65 ~ "LoInc_NVeh_NSenior",
+      HHFAMINC %in% c("01","02","03","04","05") & 
+        HHVEHCNT >  0 & R_AGE_IMP <  65 ~ "LoInc_YVeh_NSenior",
+      HHFAMINC %in% c("06","07","08","09","10","11","12") & 
+        HHVEHCNT == 0 & R_AGE_IMP <  65 ~ "HiInc_NVeh_NSenior",
+      HHFAMINC %in% c("06","07","08","09","10","11","12") & 
+        HHVEHCNT >  0 & R_AGE_IMP <  65 ~ "HiInc_YVeh_NSenior",
+      
+      HHFAMINC %in% c("01","02","03","04","05") & 
+        HHVEHCNT == 0 & R_AGE_IMP >= 65 ~ "LoInc_NVeh_YSenior",
+      HHFAMINC %in% c("01","02","03","04","05") & 
+        HHVEHCNT >  0 & R_AGE_IMP >= 65 ~ "LoInc_YVeh_YSenior",
+      HHFAMINC %in% c("06","07","08","09","10","11","12") & 
+        HHVEHCNT == 0 & R_AGE_IMP >= 65 ~ "HiInc_NVeh_YSenior",
+      HHFAMINC %in% c("06","07","08","09","10","11","12") & 
+        HHVEHCNT >  0 & R_AGE_IMP >= 65 ~ "HiInc_YVeh_YSenior",
+      
+      HHFAMINC %in% c("-9","-8","-7") & 
+        HHVEHCNT == 0 & R_AGE_IMP <  65 ~ "NAInc_NVeh_NSenior", 
+      HHFAMINC %in% c("-9","-8","-7") & 
+        HHVEHCNT >  0 & R_AGE_IMP <  65 ~ "NAInc_YVeh_NSenior", 
+      HHFAMINC %in% c("-9","-8","-7") & 
+        HHVEHCNT == 0 & R_AGE_IMP >= 65 ~ "NAInc_NVeh_YSenior", 
+      HHFAMINC %in% c("-9","-8","-7") & 
+        HHVEHCNT >  0 & R_AGE_IMP >= 65 ~ "NAInc_YVeh_YSenior", 
+      
+      TRUE ~ "Other" # Add a catch-all category if needed
+    )
+  )
+
+df_temp9 %>%
+  group_by(user_class_ATB) %>%
+  summarise(n = n())
 
 ```
 
 ```{r}
-#hhpub -- # this has the household information , demographics, location of household, info from survey
-  
-  
-# PRIVATE data, maps household to trips
-#location <- read.csv(file = file.path(datadir, "hhct.csv" ))  # household, trip ct.csv -- resticted data -- only has household location -- links
+df_temp9 |> 
+  count(user_class_ATB,incHiLo_ATB,vehicleYN_ATB,isSenior_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+```
 
-#df <- tripct.csv # raw trip with od  -- only has tract
-# trip path with distance
+## Create var: distance bins
+
+in the "transition_matrix" tab of the GEMS Master Data dictionary sheet DistanceBinID "Trip distance bin defined as following: • bin1 - distance between 0 and 1 mile • bin2 - distance between 1 and 2 miles • bin3 - distance between 2 and 4 miles • bin4 - distance between 4 and 8 miles • bin5 - distance between 8 and 15 miles • bin6 - distance between 15 and 20 miles • bin7 - distance between 20 and 35 miles • bin8 - distance above 35 miles" \### Note is this inclusive? Check at some point. *Distance Class* Can use this to see what the different classes are -- but these merge with geo types not with census TransitionMatrix-100m.csv 31919 C:\FHWA\For FHWA folks\CleanData Xiaodan
+
+Note about the bins: Using right = FALSE argument: This tells cut to consider the break edges as inclusive for the lower limit of each bin. In other words, a value equal to the lower limit will be included in that bin.
+
+```{r}
+df_temp9 <- df_temp9 %>% 
+  mutate(distance_bin_class_ATB = 
+         cut(TRPMILES, 
+             breaks = c(0, 1, 2, 4, 8, 15, 20, 35, Inf),
+             labels = c("bin1", "bin2", "bin3", "bin4", "bin5", "bin6", "bin7", "bin8"),
+             right = FALSE))
+df_temp9 |>
+  group_by(distance_bin_class_ATB) %>%
+  summarise(n = n())
+```
+
+### where are the missings?
+
+It looks like the missing values are from the non-trip survey part, but ALSO, many distance bins that are missing (656 of them)
+
+```{r}
+df_temp9 |> 
+  count(distance_bin_class_ATB,rawdatafrom_tripct_ATB,rawdatafrom_hhct_ATB)
+
+```
+
+
+## Create var: one per observation
+
+```{r}
+df_temp9 <- df_temp9 |>
+  mutate(onePerObs_ATB = 1)
+```
+
+## Create vars for: originXdestination
+```{r}
+df_temp9 <- df_temp9 |>
+    unite(origin_destination__microXgeo2types_ATB,
+        c("origin_microXgeo2types_ATB","dest_microXgeo2types_ATB"),
+        sep="_",remove = FALSE)
 ```
 
 ```{r}
-1 + 1
+df_temp9 <- df_temp9 |>
+    unite(origin_destination__microtype_ATB,
+        c("origin_microtype_ATB","dest_microtype_ATB"),
+        sep="_",remove = FALSE)
+```
+
+# DATA - Save One Final Dataset
+
+## reorder
+
+```{r}
+ df_temp10 <- df_temp9 %>% 
+  relocate(contains("_ATB"))
+```
+
+## remove temporary dataframes
+
+```{r}
+rm(df_geoID)
+rm(df_geoID_origin)
+rm(df_geoID_dest)
+rm(df_geoID_hh)
+rm(df_hhct)
+rm(df_tripct)
+rm(df_trippub)
+rm(df_temp1)
+rm(df_temp2)
+rm(df_temp3)
+rm(df_temp4)
+rm(df_temp5)
+rm(df_temp6)
+rm(df_temp7)
+rm(df_temp8)
+#rm(df_temp9)
+gc()
+```
+
+## save
+
+### save whole set
+Save the complete merged file as a parquet file and a csv file, and also a R specific rds file
+
+```{r}
+write_parquet(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.parquet"))
+write_rds(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.rds"))
+write_csv(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-full-merged.csv"))
+```
+
+# Clean up and conclude
+
+## Remove temp10
+
+```{r}
+rm(df_temp10)
+gc()
+```
+
+## Exit knittr
+
+```{r exit}
 knitr::knit_exit()
 ```
 
-#--- \# END \# \# END \# \*\*\* Notes \*\*\*
+# The End------------------------------------------------------------------
 
-# Next Steps
+#--------------------------------------------------------------------------
 
-# define distance bins
-
-in the "transition_matrix" tab of the GEMS Master Data dictionary sheet DistanceBinID "Trip distance bin defined as following: • bin1 - distance between 0 and 1 mile • bin2 - distance between 1 and 2 miles • bin3 - distance between 2 and 4 miles • bin4 - distance between 4 and 8 miles • bin5 - distance between 8 and 15 miles • bin6 - distance between 15 and 20 miles • bin7 - distance between 20 and 35 miles • bin8 - distance above 35 miles" \### Note is this inclusive? Check at some point
-
-```{r}
-
-```
-
-## Overview & background
-
-Are there enough counties where there are enough trips within them broken down into heterogeneity that we want to estimate the coefs
-
-enough counties with enough trips for each mode --\> that's what we need
-
-then want to divide by heterogeneous groups.
-
-Next to get heads around: Do we need number of or proportion for each section for each to do the proportional mnl thing Also do we need to weight it?
-
-Goal: how should we collapse the data
-
-## clean data enough that we can get a lots of different histograms
-
-```{r}
-
-```
-
-## Histogram of trip counts by county. Each county will have a number of trips that's within the county
-
-------------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
--   
-
-```{r}
-
-```
-
-## Histogram of trip counts by mode by county
-
-```{r}
-
-```
-
-## Also pull in the micro geotype indicators
-
-i'll need to ask Xiaodan where the cross walk is between census-tract and microgeotypes
-
-```{r}
-
-```
 
 ## TEMPO -- look at how they did it
 
 Use nhts does county level does fractional split logit? they have bins of income levels how did they decide to use their bins? Were they defining the bins <https://www.nrel.gov/transportation/tempo-model.html>
 
-Note: keep all new vars etc, new definitions, at the beginning or in a separate code
-
-## Future next step
-
-### doing a mnl fractional, even if not totally decided on how to make one unit of obs
-
-filter raw trip in the NHTS by origin county tripct is census tract -- last 4 didgets or something is county number of trips by county by mode
-
--   After that then \*
-
-*User Classes* another need to have definitions of user classes income, age, vehicle ownership -- do we want to keep that definition? Use this to look at definitions -- but don't merge with it bc maybe it excluded some trips: nhts_user_classes_inc_veh_sr.csv 264234 C:\FHWA\For FHWA folks\CleanData\NHTS Xiaodan
-
-*Time Classes* there's a definition somewhere
-
-*Distance Class* Can use this to see what the different classes are -- but these merge with geo types not with census TransitionMatrix-100m.csv 31919 C:\FHWA\For FHWA folks\CleanData Xiaodan
-
-```{r}
-
-
-  
-
-#df <- load("C:/FHWA_R2/This is from before/Mode_choice_estimation/Data/ModeChoice_Tour_A.Rdata")
-```
-
 # train distance data merged to trip locations.
 
 load(file= file.path(datadir,'NHTS_tract_origin_train_dist_transgeo.RData'))
 
-# NOTE: "ct" is restricted, only data for us, like hhct
-
-# "pub" public data
-
-# "perwgt" is also public
-
-# Step 1. Tripspub, maybe merge to ct. Need to merge to county. Take the
-
-# raw trips, have the county / fips codes, then look at how many trips by county
-
-# do we have per trips
-
-# tract IDs, then the microgeotypes -- crosswalk of tract to geotype
-
-This is from before I talked to Anna and Xiaodan:
+This is from something Natalie did -- probably do not use this at all, but useful to see what she did and maybe to see where it's different:
 
 ```{r}
-df <- load("C:/FHWA_R2/This is from before/Mode_choice_estimation/Data/ModeChoice_Tour_A.Rdata")
+# df <- load("C:/FHWA_R2/This is from before/Mode_choice_estimation/Data/ModeChoice_Tour_A.Rdata")
   # readr
-("C:/FHWA/For FHWA folks/Mode_choice_estimation/Data/ModeChoice_Tour_A.Rdata")
+# ("C:/FHWA/For FHWA folks/Mode_choice_estimation/Data/ModeChoice_Tour_A.Rdata")
   
 # df_ProBiz_survey_employees <- read_csv(paste0(box, probiz_path))
 ```
 
-```{r}
-df <- od.tr.purpose2 
-rm(od.tr.purpose2)
-df_mode <- TravelMode
-rm(TravelMode)
-```
-
-# Summary Stats
-
-```{r}
-summary <- df |> 
-  group_by(TDTRPNUM) |>
-  summarise(count = n())
-summary
-
-summary <- df |> 
-  group_by(o_geotype) |>
-  summarise(count = n())
-summary
-
-summary <- df |> 
-  group_by(o_microtype) |>
-  summarise(count = n())
-summary
-
-summary <- df |> 
-  group_by(d_geotype) |>
-  summarise(count = n())
-summary
-
-summary <- df |> 
-  group_by(d_microtype) |>
-  summarise(count = n())
-summary
-
-summary <- df |> 
-  group_by(whytrp1s) |>
-  summarise(count = n())
-summary
-
-
-
+### example code
+```{r }
+# summary  <-   df_temp |> 
+#   group_by(lever_position_fleetsize,
+#            originalDataset,
+#            lever_position_price) |> 
+#   summarise(
+#           across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
+#           countN = n(),
+#           across(.cols=everything(), ~mean(is.na(.x)),.names = "{.col}_Missing"),
+#           
+#             PCTwaittimeIs0 = mean(waitTime<0.000001),
+#             across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
+#             
+#             , .groups = "drop") |> 
+#   arrange(countN) 
+# problems <- problems |> 
+#   arrange(lever_position_price, lever_position_fleetsize)
+# problems <- problems |> 
+#   relocate(lever_position_price, lever_position_fleetsize,
+#             contains("wait"),
+#            contains("duration")
+#   )
+# # |> 
+#   # filter(lever_position_fleetsize==1 & lever_position_price==1)
+# readr::write_csv(problems,file = paste0(data_dir_on_this_machine,
+#                              "ReadyForAnalysis/",
+#                              glue("{placeTitleShort}_{year}_",                        "stacked_",
+#                                   "{categoryTitleShort}_{leverTitleShort}_",
+#                                   "Paired_",
+#                                   "SUMMARY",
+#                                   "_103",
+#                                   ".csv"  )))
 ```
 
 ```{r}
-summary <- df_mode |> 
-  group_by(mode) |>
-  summarise(count = n())
-summary
-summary <- df_mode |> 
-  group_by(mode) |>
-  summarise(
-    countN = n(),
-    across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
-    across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"))
-summary
-
-summary <- df_mode |> 
-  group_by(trip_purpose) |>
-  summarise(count = n())
-summary
-
-summary_modeXpurpose <- df_mode |> 
-  group_by(mode, trip_purpose) |>
-  summarise(count = n())
-summary
-
-summary <- df_mode |> 
-  group_by(hometract) |>
-  summarise(count = n())
-summary
-
+# (hist_employees_per_company <- 
+#   df_ProBiz_survey_employees %>% 
+#     count(c_company_name)%>% 
+#     ggplot(aes(x = n)) +
+#     geom_histogram(binwidth = 5, 
+#                    boundary = 0, 
+#                    fill = "darkred",
+#                    color = "black") +
+#     scale_x_continuous(n.breaks = 15) +
+#     theme_bw() +
+#     theme(plot.caption = element_text(hjust = 0)) + # set the left align here
+#     labs(x = "Number of employees per company",
+#          y = "Number of companys",
+#          title = "Histogram of number of employees per company",
+#          caption = "* Binwidth = 10\n ** Total number of companies is 275"))
 ```
-
-```{r}
-hist_temp <- 
-```
-
-```{r summary}
-summary  <-   df_temp |> 
-  group_by(lever_position_fleetsize,
-           originalDataset,
-           lever_position_price) |> 
-  summarise(
-          across(where(is.numeric),~mean(.x),.names = "{.col}_avg"),
-          countN = n(),
-          across(.cols=everything(), ~mean(is.na(.x)),.names = "{.col}_Missing"),
-          
-            PCTwaittimeIs0 = mean(waitTime<0.000001),
-            across(where(is.factor ),~n_distinct(.x),.names = "{.col}_Ndis"),
-            
-            , .groups = "drop") |> 
-  arrange(countN) 
-problems <- problems |> 
-  arrange(lever_position_price, lever_position_fleetsize)
-problems <- problems |> 
-  relocate(lever_position_price, lever_position_fleetsize,
-            contains("wait"),
-           contains("duration")
-  )
-# |> 
-  # filter(lever_position_fleetsize==1 & lever_position_price==1)
-readr::write_csv(problems,file = paste0(data_dir_on_this_machine,
-                             "ReadyForAnalysis/",
-                             glue("{placeTitleShort}_{year}_",                        "stacked_",
-                                  "{categoryTitleShort}_{leverTitleShort}_",
-                                  "Paired_",
-                                  "SUMMARY",
-                                  "_103",
-                                  ".csv"  )))
-```
-
-```{r}
-(hist_employees_per_company <- 
-  df_ProBiz_survey_employees %>% 
-    count(c_company_name)%>% 
-    ggplot(aes(x = n)) +
-    geom_histogram(binwidth = 5, 
-                   boundary = 0, 
-                   fill = "darkred",
-                   color = "black") +
-    scale_x_continuous(n.breaks = 15) +
-    theme_bw() +
-    theme(plot.caption = element_text(hjust = 0)) + # set the left align here
-    labs(x = "Number of employees per company",
-         y = "Number of companys",
-         title = "Histogram of number of employees per company",
-         caption = "* Binwidth = 10\n ** Total number of companies is 275"))
-```
-
