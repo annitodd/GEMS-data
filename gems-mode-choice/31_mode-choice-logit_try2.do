@@ -40,7 +40,7 @@ order HiInc_YN
 
 
 *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-**#  Fractional Split Logit
+**#  Fractional Split Logit -- all variables
 *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * NOTE: logits hard to interpret so basically you only want to look at the 
 * second step, the step with the margins and the pwcompare 
@@ -70,8 +70,30 @@ order HiInc_YN
 	margins, dydx(* ) predict(outcome(m_taxi))  atmeans
 	margins, dydx(* ) predict(outcome(m_walk))  atmeans
 
-	
-	
+*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**#  Fractional-- play around look only at taxis 
+*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* I'm ordering it here by what I think is going to have a positive marginal 
+* effect (an increase in it results in increase in taxi) then negative, and
+* then the ones that could go either way, so that when we see the results we 
+* can see if they make sense or not
+
+// estimate logit (the first vars are ys, eta is the x vars)
+	fmlogit m_bike m_bus m_hv m_rail m_taxi m_walk, eta( 					 ///
+		cost_permile_taxi		wait_time_taxi			access_time_taxi
+		inv_time_permile_bike 	inv_time_permile_walk	inv_time_permile_hv	 ///	
+		inv_time_permile_rail 	inv_time_permile_taxi	inv_time_permile_bus ///
+		access_time_bus			access_time_rail			 ///
+		wait_time_bus			wait_time_rail					 ///
+		cost_permile_bus		cost_permile_hv			cost_permile_rail 	 ///	
+		 )
+// now look at marginal effects. This generates predicted probabilities. The number in the dy/dx is the probability. 
+	margins, dydx(* ) predict(outcome(m_taxi))  
+	marginsplot, xdimension(_deriv) graphdimension() horizontal
+		
+		
+		
+
 	
 *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 **#  Statistical tests of logit
