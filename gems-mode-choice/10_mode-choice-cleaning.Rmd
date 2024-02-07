@@ -872,6 +872,12 @@ write_csv(df_temp10,  file.path(data_results, "10-mode-choice-cleaning_output-fu
 
 # Clean up and conclude
 
+data_results <- 'C:/FHWA_R2/mode_choice_estimation/data'
+write_csv(TravelMode.modmat,  file.path(data_results, "Old_Data.csv"))
+
+save(TravelMode.modmat, file = file.path(data_results, 'ModeChoice_A.RData'))
+# load(file = file.path(datadir, 'ModeChoice_A.RData'))
+
 ## Remove temp10
 
 ```{r}
